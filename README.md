@@ -5,13 +5,13 @@ actions and reproduce them identically as many times as he wants.
 # Install instructions
 Fedora
 ```shell
-git clone https://github.com/atbswp.git && cd atbswp
+git clone https://github.com/rmpr/atbswp.git && cd atbswp
 sudo dnf install python3-wxpython4
 python3 atbswp.py
 ```
 Debian
 ```shell
-git clone https://github.com/atbswp.git && cd atbswp
+git clone https://github.com/rmpr/atbswp.git && cd atbswp
 sudo apt install python3-wxgtk4.0
 python3 atbswp.py
 ```
