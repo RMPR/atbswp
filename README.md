@@ -15,6 +15,12 @@ git clone https://github.com/RMPR/atbswp.git && cd atbswp
 sudo apt install python3-wxgtk4.0
 python3 atbswp.py
 ```
+Windows
+```shell
+git clone https://github.com/RMPR/atbswp.git && cd atbswp
+pip install wxPython
+python atbswp.py
+```
 
 # Contributions
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
