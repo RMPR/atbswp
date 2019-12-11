@@ -1,0 +1,7 @@
+Charger un fichier capture du disque
+Sauvegarder une capture
+Enregistrer
+Jouer une capture
+Transformer en executable
+Parametres
+Aide
