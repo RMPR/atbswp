@@ -16,31 +16,98 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import subprocess
+import tempfile
+
 import wx
 import wx.adv
 
+TMP_PATH = os.path.join(tempfile.gettempdir(), "tmp_atbswp")
 
-class FileChooser:
+
+class FileChooserCtrl:
     """
     Control class for both the open capture and save capture options
+
+    Keyword arguments
+    capture -- content of the temporary file
     """
-    def action(self, e):
+
+    capture = str()
+
+    def __init__(self, parent):
+        self.parent = parent
+
+    def load_content(self, path):
+        # TODO: Better input control
+        if not path or not os.path.isfile(path):
+            return None
+        with open(path, 'r') as f:
+            return f.read()
+
+    def load_file(self, event):
+        global TMP_PATH
         title = "Choose a capture file:"
-        dlg = wx.FileDialog(self,
+        dlg = wx.FileDialog(self.parent,
                             message=title,
                             defaultDir="~",
                             style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
-            self.lpanel.set_data(dlg.GetPath())
+            self.capture = self.load_content(dlg.GetPath())
+            with open(TMP_PATH, 'w') as f:
+                f.write(self.capture)
         dlg.Destroy()
+
+    def save_file(self, event):
+        with wx.FileDialog(self.parent, "Save capture file", wildcard="*",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return     # the user changed their mind
+
+            # save the current contents in the file
+            pathname = fileDialog.GetPath()
+            try:
+                with open(pathname, 'w') as file:
+                    file.write(self.capture)
+            except IOError:
+                wx.LogError(f"Cannot save current data in file {pathname}.")
+
+
+class RecordCtrl:
+    """
+    Control class for the record button
+    """
+    def action(self, event):
+        pass
+
+
+class PlayCtrl:
+    """
+    Control class for the play button
+    """
+    global TMP_PATH
+
+    def __init__(self):
+        pass
+
+    def action(self, event):
+        if TMP_PATH is None or not os.path.isfile(TMP_PATH):
+            wx.LogError(f"{TMP_PATH} doesn't seem to exist")
+            return
+        subprocess.Popen(["python", TMP_PATH])
 
 
 class SettingsCtrl:
-    def action(self, e):
+    """
+    Control class for the settings
+    """
+    def action(self, event):
         print("we reach here hey")
 
 
-class AboutCtrl:
+class HelpCtrl:
     """
     Control class for the About menu
     """

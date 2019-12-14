@@ -35,9 +35,9 @@ class MainDialog(wx.Dialog):
     """
     app_text = ["Load Capture", "Save", "Start Capture", "Play",
                 "Compile to exe", "Preferences", "Help"]
-    settings_text = ["Continuous Playback", "Repeat Playback Loops",
-                     "Recording Hotkey", "Playback Hotkey", "Always on Top",
-                     "About"]
+    settings_text = ["&Continuous Playback", "&Repeat Playback Loops",
+                     "&Recording Hotkey", "&Playback Hotkey", "&Always on Top",
+                     "&About"]
 
     def on_settings_click(self, event):
         self.MakeThePopup()
@@ -113,10 +113,22 @@ class MainDialog(wx.Dialog):
         pass
 
     def __add_bindings(self):
+        # file_save_ctrl
+        self.fsc = control.FileChooserCtrl(self)
+        self.Bind(wx.EVT_BUTTON, self.fsc.load_file, self.file_open_button)
+        self.Bind(wx.EVT_BUTTON, self.fsc.save_file, self.save_button)
 
-        # sc = control.SettingsCtrl(self)
-        hb = control.AboutCtrl()
-        self.Bind(wx.EVT_BUTTON, hb.action, self.help_button)
+        # record_button_ctrl
+        rbc = control.RecordCtrl()
+        self.Bind(wx.EVT_BUTTON, rbc.action, self.record_button)
+
+        # play_button_ctrl
+        pbc = control.PlayCtrl()
+        self.Bind(wx.EVT_BUTTON, pbc.action, self.play_button)
+
+        # help_button_ctrl
+        hbc = control.HelpCtrl()
+        self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
 
     def __set_properties(self):
         self.file_open_button.SetSize(self.file_open_button.GetBestSize())
