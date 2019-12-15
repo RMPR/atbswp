@@ -37,7 +37,7 @@ class MainDialog(wx.Dialog):
                 "Compile to exe", "Preferences", "Help"]
     settings_text = ["&Continuous Playback", "&Repeat Playback Loops",
                      "&Recording Hotkey", "&Playback Hotkey", "&Always on Top",
-                     "&About"]
+                     "About"]
 
     def on_settings_click(self, event):
         self.MakeThePopup()
