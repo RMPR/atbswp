@@ -48,5 +48,4 @@ six==1.13.0
 tomlkit==0.5.8
 urllib3==1.25.7
 webencodings==0.5.1
-wxPython==4.0.6
 zipp==0.6.0
