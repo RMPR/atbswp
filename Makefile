@@ -12,8 +12,8 @@ endif
 
 VENV=./bin
 PYTHON=${VENV}/python
-PYINSTALLER=../$(VENV)/pyinstaller
-WORKDIR=./atbwsp
+PYINSTALLER=$(VENV)/pyinstaller
+WORKDIR=./atbswp
 
 .DEFAULT: help
 help: ## Display this help section
@@ -40,27 +40,23 @@ clean-pyc: $(VENV)  ## Clean all the pyc files
 > name '*~' -exec rm --force  {}
 
 clean-build: $(VENV)/activate ## Clean previous build
-> @cd $(WORKDIR)/
 > @rm --force --recursive build/
 > @rm --force --recursive dist/
 > @rm --force --recursive *.egg-info
-> @cd ..
 > make build
 
 build: $(VENV)/activate ## Build the project for the current platform
-> @cd $(WORKDIR) &&\
-> $(PYINSTALLER) atbswp.py && \
-> cp -r ./img ./dist/
-> cd ..
+> $(PYINSTALLER) $(WORKDIR)/atbswp.py && \
+> cp -r $(WORKDIR)/img dist/atbswp/
 
 run: $(VENV)/activate  ## Launch the project
-> @cd atbswp &&\
-> python atbswp.py && \
-> cd ..
+> $(PYTHON) $(WORKDIR)/atbswp.py
 
 show-venv: $(VENV)/activate  ## Show venv parameters
 >	@$(VENV)/python -c "import sys; print('Python ' + sys.version.replace('\n',''))"
+> @echo
 >	@$(VENV)/pip --version
+> @echo
 
 clean-venv:  ##  Remove virtual environment
 > @rm --force --recursive bin/

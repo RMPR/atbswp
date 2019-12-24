@@ -19,6 +19,10 @@
 import os
 import subprocess
 import tempfile
+import time
+
+from pynput import keyboard
+from pynput import mouse
 
 import wx
 import wx.adv
@@ -79,8 +83,55 @@ class RecordCtrl:
     """
     Control class for the record button
     """
-    def action(self, event):
+    def __init__(self):
         pass
+
+    def on_move(self, x, y):
+        print('Pointer moved to {0}'.format(
+            (x, y)))
+
+    def on_click(self, x, y, button, pressed):
+        print('{0} at {1}'.format(
+            'Pressed' if pressed else 'Released',
+            (x, y)))
+        if not pressed:
+            # Stop listener
+            return False
+
+    def on_scroll(self, x, y, dx, dy):
+        print('Scrolled {0} at {1}'.format(
+            'down' if dy < 0 else 'up',
+            (x, y)))
+
+    def on_press(self, key):
+        try:
+            print('alphanumeric key {0} pressed'.format(
+                key.char))
+        except AttributeError:
+            print('special key {0} pressed'.format(
+                key))
+
+    def on_release(self, key):
+        print('{0} released'.format(
+            key))
+        if key == keyboard.Key.esc:
+            # Stop listener
+            return False
+
+    def action(self, event):
+        print("it works dude")
+        listener_mouse = mouse.Listener(
+            on_move=self.on_move,
+            on_click=self.on_click,
+            on_scroll=self.on_scroll)
+        listener_mouse.start()
+        listener_keyboard = keyboard.Listener(
+            on_press=self.on_press,
+            on_release=self.on_release)
+        listener_keyboard.start()
+        time.sleep(10)
+        listener_mouse.stop()
+        listener_keyboard.stop()
 
 
 class PlayCtrl:

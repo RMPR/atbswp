@@ -22,6 +22,7 @@ create the GUI
 """
 
 import os
+from pathlib import Path
 
 import control
 
@@ -61,36 +62,37 @@ class MainDialog(wx.Dialog):
         """
         Build the interface
         """
+        path = Path(__file__).parent.absolute()
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
         self.file_open_button = wx.BitmapButton(self,
                                                 wx.ID_ANY,
-                                                wx.Bitmap(os.path.join("..", "img", "file-upload.png"),
+                                                wx.Bitmap(os.path.join(path, "img", "file-upload.png"),
                                                           wx.BITMAP_TYPE_ANY))
         self.file_open_button.SetToolTip(self.app_text[0])
         self.save_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
-                                           wx.Bitmap(os.path.join("..", "img", "save.png"),
+                                           wx.Bitmap(os.path.join(path, "img", "save.png"),
                                                      wx.BITMAP_TYPE_ANY))
         self.save_button.SetToolTip(self.app_text[1])
         self.record_button = wx.BitmapButton(self,
                                              wx.ID_ANY,
-                                             wx.Bitmap(os.path.join("..", "img", "video.png"),
+                                             wx.Bitmap(os.path.join(path, "img", "video.png"),
                                                        wx.BITMAP_TYPE_ANY))
         self.record_button.SetToolTip(self.app_text[2])
         self.play_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
-                                           wx.Bitmap(os.path.join("..", "img", "play-circle.png"),
+                                           wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
                                                      wx.BITMAP_TYPE_ANY))
         self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
-                                              wx.Bitmap(os.path.join("..", "img", "download.png"),
+                                              wx.Bitmap(os.path.join(path, "img", "download.png"),
                                                         wx.BITMAP_TYPE_ANY))
         self.compile_button.SetToolTip(self.app_text[4])
         self.settings_button = wx.BitmapButton(self,
                                                wx.ID_ANY,
-                                               wx.Bitmap(os.path.join("..", "img", "cog.png"),
+                                               wx.Bitmap(os.path.join(path, "img", "cog.png"),
                                                          wx.BITMAP_TYPE_ANY))
         self.settings_button.SetToolTip(self.app_text[5])
 
@@ -98,7 +100,7 @@ class MainDialog(wx.Dialog):
 
         self.help_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
-                                           wx.Bitmap(os.path.join("..", "img", "question-circle.png"),
+                                           wx.Bitmap(os.path.join(path, "img", "question-circle.png"),
                                                      wx.BITMAP_TYPE_ANY))
         self.help_button.SetToolTip(self.app_text[6])
 
@@ -110,6 +112,7 @@ class MainDialog(wx.Dialog):
         """
         Load the interface in user-defined language (default english)
         """
+        # TODO
         pass
 
     def __add_bindings(self):
@@ -119,8 +122,8 @@ class MainDialog(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.fsc.save_file, self.save_button)
 
         # record_button_ctrl
-        rbc = control.RecordCtrl()
-        self.Bind(wx.EVT_BUTTON, rbc.action, self.record_button)
+        self.rbc = control.RecordCtrl()
+        self.Bind(wx.EVT_BUTTON, self.rbc.action, self.record_button)
 
         # play_button_ctrl
         pbc = control.PlayCtrl()
