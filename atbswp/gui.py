@@ -34,8 +34,8 @@ class MainDialog(wx.Dialog):
     Main windows of the app, it's a dialog to display_button the app correctly
     even with tiling WMs
     """
-    app_text = ["Load Capture", "Save", "Start Capture", "Play",
-                "Compile to exe", "Preferences", "Help"]
+    app_text = ["Load Capture", "Save", "Start/Stop Capture", "Play",
+                "Compile to executable", "Preferences", "Help"]
     settings_text = ["&Continuous Playback", "&Repeat Playback Loops",
                      "&Recording Hotkey", "&Playback Hotkey", "&Always on Top",
                      "About"]
@@ -75,15 +75,15 @@ class MainDialog(wx.Dialog):
                                            wx.Bitmap(os.path.join(path, "img", "save.png"),
                                                      wx.BITMAP_TYPE_ANY))
         self.save_button.SetToolTip(self.app_text[1])
-        self.record_button = wx.BitmapButton(self,
-                                             wx.ID_ANY,
-                                             wx.Bitmap(os.path.join(path, "img", "video.png"),
-                                                       wx.BITMAP_TYPE_ANY))
+        self.record_button = wx.BitmapToggleButton(self,
+                                                   wx.ID_ANY,
+                                                   wx.Bitmap(os.path.join(path, "img", "video.png"),
+                                                             wx.BITMAP_TYPE_ANY))
         self.record_button.SetToolTip(self.app_text[2])
-        self.play_button = wx.BitmapButton(self,
-                                           wx.ID_ANY,
-                                           wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
-                                                     wx.BITMAP_TYPE_ANY))
+        self.play_button = wx.BitmapToggleButton(self,
+                                                 wx.ID_ANY,
+                                                 wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
+                                                           wx.BITMAP_TYPE_ANY))
         self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
@@ -122,12 +122,12 @@ class MainDialog(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.fsc.save_file, self.save_button)
 
         # record_button_ctrl
-        self.rbc = control.RecordCtrl()
-        self.Bind(wx.EVT_BUTTON, self.rbc.action, self.record_button)
+        rbc = control.RecordCtrl()
+        self.Bind(wx.EVT_TOGGLEBUTTON, rbc.action, self.record_button)
 
         # play_button_ctrl
         pbc = control.PlayCtrl()
-        self.Bind(wx.EVT_BUTTON, pbc.action, self.play_button)
+        self.Bind(wx.EVT_TOGGLEBUTTON, pbc.action, self.play_button)
 
         # help_button_ctrl
         hbc = control.HelpCtrl()
