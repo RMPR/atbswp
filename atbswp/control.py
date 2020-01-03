@@ -100,7 +100,7 @@ class RecordCtrl:
         if not self.recording:
             return False
         print("mouse moved")
-        self.capture.append(f"pyautogui.moveTo({x}, {y})")
+        self.capture.append(f"pyautogui.moveTo({x}, {y}, duration=0.1, _pause=False)")
 
     def on_click(self, x, y, button, pressed):
         if not self.recording:
