@@ -21,6 +21,7 @@ import platform
 import subprocess
 import tempfile
 from datetime import date
+import time
 
 from pynput import keyboard
 from pynput import mouse
@@ -93,7 +94,9 @@ class RecordCtrl:
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
             f"# on {tmp_date}\n"
             f"import pyautogui \n"
+            f"import time \n"
         )
+
         self.capture = [header]
 
     def on_move(self, x, y):
@@ -110,7 +113,7 @@ class RecordCtrl:
             if button == mouse.Button.left:
                 self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right)")
+                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right')")
             elif button == mouse.Button.middle:
                 self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'middle')")
             else:
@@ -119,7 +122,7 @@ class RecordCtrl:
             if button == mouse.Button.left:
                 self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'left')")
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right)")
+                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right')")
             elif button == mouse.Button.middle:
                 self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'middle')")
             else:
@@ -135,6 +138,11 @@ class RecordCtrl:
         if not self.recording:
             return False
         print("button pressed")
+        
+        b = time.perf_counter()
+        self.capture.append(f"time.sleep ({b - self.last_time})")
+        self.last_time = b
+
         try:
             self.capture.append(f"pyautogui.keyDown({repr(key.char)})")
 
@@ -245,6 +253,7 @@ class RecordCtrl:
         if not self.recording:
             return False
         print("button released")
+        #self.count_perf()
         if key == keyboard.Key.alt:
             if platform.system() == "Darwin":
                 self.capture.append(f"pyautogui.keyUp('option')")
@@ -358,6 +367,7 @@ class RecordCtrl:
         if event.GetEventObject().GetValue():
             listener_keyboard.start()
             listener_mouse.start()
+            self.last_time = time.perf_counter()
             self.recording = True
         else:
             self.recording = False
