@@ -103,6 +103,12 @@ class RecordCtrl:
         if not self.recording:
             return False
         print("mouse moved")
+        
+        b = time.perf_counter()
+        if int(b-self.last_time) > 0:
+            self.capture.append(f"time.sleep ({b - self.last_time})")
+        self.last_time = b
+
         self.capture.append(f"pyautogui.moveTo({x}, {y}, duration=0.1, _pause=False)")
 
     def on_click(self, x, y, button, pressed):
@@ -133,6 +139,7 @@ class RecordCtrl:
             return False
         print('Scrolled {0} at {1}'.format('down' if dy < 0 else 'up', ({x}, {y})))
         self.capture.append(f"pyautogui.scroll({dy})")
+
 
     def on_press(self, key):
         if not self.recording:
