@@ -396,8 +396,8 @@ class HelpCtrl:
     """
     def action(self, event):
         info = wx.adv.AboutDialogInfo()
-        info.Name = "About"
-        info.Version = "atbswp v0.1"
+        info.Name = "atbswp"
+        info.Version = "v0.1"
         info.Copyright = ("(C) 2019 Mairo Paul Rufus <akoudanilo@gmail.com>\n")
         info.Description = "Record mouse and keyboard actions and reproduce them identically at will"
         info.WebSite = ("https://github.com/atbswp", "Project homepage")
