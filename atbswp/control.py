@@ -20,8 +20,8 @@ import os
 import platform
 import subprocess
 import tempfile
-from datetime import date
 import time
+from datetime import date
 
 from pynput import keyboard
 from pynput import mouse
@@ -160,6 +160,11 @@ class RecordCtrl:
                     self.capture.append(f"pyautogui.keyDown('option')")
                 else:
                     self.capture.append(f"pyautogui.keyDown('alt')")
+            elif key == keyboard.Key.alt_l:
+                if platform.system() == "Darwin":
+                    self.capture.append(f"pyautogui.keyDown('optionleft')")
+                else:
+                    self.capture.append(f"pyautogui.keyDown('altleft')")
             elif key == keyboard.Key.alt_r:
                 if platform.system() == "Darwin":
                     self.capture.append(f"pyautogui.keyDown('optionright')")
@@ -266,6 +271,11 @@ class RecordCtrl:
                 self.capture.append(f"pyautogui.keyUp('option')")
             else:
                 self.capture.append(f"pyautogui.keyUp('alt')")
+        elif key == keyboard.Key.alt_l:
+            if platform.system() == "Darwin":
+                self.capture.append(f"pyautogui.keyUp('optionleft')")
+            else:
+                self.capture.append(f"pyautogui.keyUp('altleft')")
         elif key == keyboard.Key.alt_r:
             if platform.system() == "Darwin":
                 self.capture.append(f"pyautogui.keyUp('optionright')")
