@@ -6,21 +6,43 @@ actions and reproduce them identically as many times as he wants.
 Fedora
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
+
 sudo dnf install python3-wxpython4
-python3 atbswp.py
+
+python -m venv .
+
+make prepare-dev
+
+make run
 ```
 Debian
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
+
 sudo apt install python3-wxgtk4.0
-python3 atbswp.py
+
+python -m venv .
+
+make prepare-dev
+
+make run
 ```
 Windows
 ```shell
-git clone https://github.com/RMPR/atbswp.git && cd atbswp
-pip install wxPython
-python atbswp.py
+git clone https://github.com/rmpr/atbswp
+
+cd atbswp\
+
+pip install wxPython 
+
+pip install -r requirements-dev.txt
+
+python atbswp\atbswp.py
 ```
 
+# Demo
+
+
+[![atbswp quick demo](https://img.youtube.com/vi/L0jjSgX5FYk/0.jpg)](https://www.youtube.com/watch?v=L0jjSgX5FYk)
 # Contributions
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
