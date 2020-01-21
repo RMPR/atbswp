@@ -91,6 +91,7 @@ class RecordCtrl:
     def __init__(self):
         tmp_date = date.today().strftime("%Y %b %a")
         header = (
+            f"# -*- coding: latin-1 -*- \n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
             f"# on {tmp_date}\n"
             f"import pyautogui \n"
