@@ -42,7 +42,7 @@ python atbswp\atbswp.py
 
 # Demo
 
+![atbswp quick demo](demo/demo.gif)
 
-[![atbswp quick demo](https://img.youtube.com/vi/L0jjSgX5FYk/0.jpg)](https://www.youtube.com/watch?v=L0jjSgX5FYk)
 # Contributions
 See [CONTRIBUTING.md](./CONTRIBUTING.md)
