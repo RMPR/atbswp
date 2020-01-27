@@ -14,6 +14,8 @@ VENV=./bin
 PYTHON=${VENV}/python
 PYINSTALLER=$(VENV)/pyinstaller
 WORKDIR=./atbswp
+WX_PATH:=$(shell pip show wxPython | awk ' $$1=="Location:" {print $$2} ')/wx
+VENV_SITE_PACKAGES:=$(shell $(PYTHON) -c "import site; print(site.getsitepackages()[0])")
 
 .DEFAULT: help
 help: ## Display this help section
@@ -25,10 +27,7 @@ prepare-dev: ## Prepare the development environment
 > @python -m venv .
 > @$(PYTHON) -m pip install --upgrade pip
 > @${PYTHON} -m pip install -r requirements-dev.txt
-> @echo
-> @echo
-> @echo Now you need to copy the wx folder from the site-packages of your distribution to the site-packages of the virtual environnement.
-> @echo
+> cp -r $(WX_PATH) $(VENV_SITE_PACKAGES)
 > @echo
 
 test: $(VENV)/activate  ## Run all tests
