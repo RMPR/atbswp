@@ -18,6 +18,7 @@
 
 import os
 import platform
+import shutil
 import subprocess
 import tempfile
 import time
@@ -75,8 +76,7 @@ class FileChooserCtrl:
             # save the current contents in the file
             pathname = fileDialog.GetPath()
             try:
-                with open(pathname, 'w') as file:
-                    file.write(self.capture)
+                shutil.copy(TMP_PATH, pathname)
             except IOError:
                 wx.LogError(f"Cannot save current data in file {pathname}.")
 
@@ -90,7 +90,7 @@ class RecordCtrl:
     """
     def __init__(self):
         tmp_date = date.today().strftime("%Y %b %a")
-        header = (
+        self.header = (
             f"# -*- coding: latin-1 -*- \n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
             f"# on {tmp_date}\n"
@@ -98,7 +98,7 @@ class RecordCtrl:
             f"import time \n"
         )
 
-        self.capture = [header]
+        self.capture = [self.header]
 
     def on_move(self, x, y):
         if not self.recording:
@@ -390,7 +390,10 @@ class RecordCtrl:
         else:
             self.recording = False
             with open(TMP_PATH, 'w') as f:
+                f.seek(0)
                 f.write("\n".join(self.capture))
+                f.truncate()
+            self.capture = [self.header]
 
 
 class PlayCtrl:
