@@ -1,0 +1,2 @@
+[atbswp]
+EXAMPLE = "Example configuration"

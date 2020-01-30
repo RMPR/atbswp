@@ -19,5 +19,24 @@
 import os
 import configparser
 
-def load_parameters(path):
-    pass
+
+
+import configparser as ConfigParser
+
+def load_parameters(path, param, scope="atbswp"):
+    """
+    Usage:
+        load_parameters("./example_config.txt", "EXAMPLE")
+    
+    Params:
+        path :  the path of the configuration file
+        param : the key of the parameter you want to get the value
+        scope :  The scope of parameters
+    """
+    # Configs parameters
+    configParser = ConfigParser.RawConfigParser()   
+    configFilePath = path
+    configParser.read(configFilePath)
+
+    # Filling parameters
+    return configParser.get(scope, param)

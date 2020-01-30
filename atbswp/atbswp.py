@@ -21,8 +21,6 @@ Entry point of the program
 """
 
 import gui
-
-
 import wx
 
 

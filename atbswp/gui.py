@@ -23,9 +23,7 @@ create the GUI
 
 import os
 from pathlib import Path
-
 import control
-
 import wx
 
 
