@@ -103,8 +103,6 @@ class RecordCtrl:
     def on_move(self, x, y):
         if not self.recording:
             return False
-        print("mouse moved")
-        
         b = time.perf_counter()
         if int(b-self.last_time) > 0:
             self.capture.append(f"time.sleep ({b - self.last_time})")
@@ -115,7 +113,6 @@ class RecordCtrl:
     def on_click(self, x, y, button, pressed):
         if not self.recording:
             return False
-        print("mouse clicked")
         if pressed:
             if button == mouse.Button.left:
                 self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
@@ -141,12 +138,9 @@ class RecordCtrl:
         print('Scrolled {0} at {1}'.format('down' if dy < 0 else 'up', ({x}, {y})))
         self.capture.append(f"pyautogui.scroll({dy})")
 
-
     def on_press(self, key):
         if not self.recording:
             return False
-        print("button pressed")
-        
         b = time.perf_counter()
         self.capture.append(f"time.sleep ({b - self.last_time})")
         self.last_time = b
@@ -155,7 +149,6 @@ class RecordCtrl:
             self.capture.append(f"pyautogui.keyDown({repr(key.char)})")
 
         except AttributeError:
-            print('special key {0} pressed'.format(key))
             if key == keyboard.Key.alt:
                 if platform.system() == "Darwin":
                     self.capture.append(f"pyautogui.keyDown('option')")
@@ -265,7 +258,6 @@ class RecordCtrl:
     def on_release(self, key):
         if not self.recording:
             return False
-        print("button released")
         #self.count_perf()
         if key == keyboard.Key.alt:
             if platform.system() == "Darwin":
@@ -418,7 +410,7 @@ class SettingsCtrl:
     Control class for the settings
     """
     def action(self, event):
-        print("we reach here hey")
+        pass
 
 
 class HelpCtrl:
