@@ -7,7 +7,6 @@ Fedora
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
 sudo dnf install python3-wxpython4
-python -m venv ./
 make prepare-dev
 make run
 ```
@@ -15,7 +14,6 @@ Debian
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
 sudo apt install python3-wxgtk4.0
-python -m venv ./
 make prepare-dev
 make run
 ```
