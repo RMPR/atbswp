@@ -100,6 +100,28 @@ class RecordCtrl:
 
         self.capture = [self.header]
 
+
+    def clk_mouse(self, mode, param):
+        """
+        Params:
+            mode : Defines the mode of the action ( down, up )
+            param : Dfines the parameter for pyautogui
+
+            The .title() will make down to Down
+        """
+        self.capture.append(f"pyautogui.mouse"+mode.title()+" (" + param + ")")
+
+    def clk_kboard(self, mode, param):
+        """
+        Params:
+            mode : Defines the mode of the action ( down, up )
+            param : Dfines the parameter for pyautogui
+
+            The .title() will make down to Down
+        """
+        self.capture.append(f"pyautogui.key"+mode.title()+"('"+param+"')")
+
+
     def on_move(self, x, y):
         if not self.recording:
             return False
@@ -115,20 +137,20 @@ class RecordCtrl:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
+                self.clk_mouse("down", "{), {}, 'left'".format(x, y))
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right')")
+                self.clk_mouse("down", "{), {}, 'right'".format(x, y))
             elif button == mouse.Button.middle:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'middle')")
+                self.clk_mouse("down", "{), {}, 'middle'".format(x, y))
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'left')")
+                self.clk_mouse("up", "{), {}, 'left'".format(x, y))
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right')")
+                self.clk_mouse("up", "{), {}, 'right'".format(x, y))
             elif button == mouse.Button.middle:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'middle')")
+                self.clk_mouse("up", "{), {}, 'middle'".format(x, y))
             else:
                 wx.LogError("Mouse Button not recognized")
 
@@ -147,49 +169,50 @@ class RecordCtrl:
 
         try:
             self.capture.append(f"pyautogui.keyDown({repr(key.char)})")
+        except AttributeError as es:
+            print("AttributeError : ", es)
 
-        except AttributeError:
             if key == keyboard.Key.alt:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('option')")
+                    self.clk_kboard("down", "option")
                 else:
-                    self.capture.append(f"pyautogui.keyDown('alt')")
+                    self.clk_kboard("down", "alt")
             elif key == keyboard.Key.alt_l:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('optionleft')")
+                    self.clk_kboard("down", "optionleft")
                 else:
-                    self.capture.append(f"pyautogui.keyDown('altleft')")
+                    self.clk_kboard("down", "altleft")
             elif key == keyboard.Key.alt_r:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('optionright')")
+                    self.clk_kboard("down", "optionright")
                 else:
-                    self.capture.append(f"pyautogui.keyDown('altright')")
+                    self.clk_kboard("down", "altright")
             elif key == keyboard.Key.alt_gr:
-                self.capture.append(f"pyautogui.keyDown('altright')")
+                self.clk_kboard("down", "altright")
             elif key == keyboard.Key.backspace:
-                self.capture.append(f"pyautogui.keyDown('backspace')")
+                self.clk_kboard("down", "backspace")
             elif key == keyboard.Key.caps_lock:
-                self.capture.append(f"pyautogui.keyDown('capslock')")
+                self.clk_kboard("down", "capslock")
             elif key == keyboard.Key.cmd:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('command')")
+                    self.clk_kboard("down", "command")
                 else:
-                    self.capture.append(f"pyautogui.keyDown('winleft')")
+                    self.clk_kboard("down", "winleft")
             elif key == keyboard.Key.cmd_r:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('cmdright')")
+                    self.clk_kboard("down", "cmdright")
                 else:
-                    self.capture.append(f"pyautogui.keyDown('winright')")
+                    self.clk_kboard("down", "winright")
             elif key == keyboard.Key.ctrl:
-                self.capture.append(f"pyautogui.keyDown('ctrlleft')")
+                self.clk_kboard("down", "ctrlleft")
             elif key == keyboard.Key.ctrl_r:
-                self.capture.append(f"pyautogui.keyDown('ctrlright')")
+                self.clk_kboard("down", "ctrlright")
             elif key == keyboard.Key.delete:
-                self.capture.append(f"pyautogui.keyDown('delete')")
+                self.clk_kboard("down", "delete")
             elif key == keyboard.Key.down:
-                self.capture.append(f"pyautogui.keyDown('down')")
+                self.clk_kboard("down", "down")
             elif key == keyboard.Key.end:
-                self.capture.append(f"pyautogui.keyDown('end')")
+                self.clk_kboard("down", "end")
             elif key == keyboard.Key.enter:
                 self.capture.append(f"pyautogui.keyDown('enter')")
             elif key == keyboard.Key.esc:
