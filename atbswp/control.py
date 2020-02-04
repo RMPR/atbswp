@@ -401,7 +401,9 @@ class PlayCtrl:
         if TMP_PATH is None or not os.path.isfile(TMP_PATH):
             wx.LogError(f"{TMP_PATH} doesn't seem to exist")
             return
-        subprocess.run(["python", TMP_PATH])
+        with open(TMP_PATH, 'r') as f:
+            capture = f.read()
+        exec(capture)
         event.GetEventObject().SetValue(False)
 
 
