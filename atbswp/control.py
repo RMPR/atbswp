@@ -19,7 +19,6 @@
 import os
 import platform
 import shutil
-import subprocess
 import tempfile
 import time
 from datetime import date
@@ -30,7 +29,8 @@ from pynput import mouse
 import wx
 import wx.adv
 
-TMP_PATH = os.path.join(tempfile.gettempdir(), "tmp_atbswp")
+TMP_PATH = os.path.join(tempfile.gettempdir(),
+                        "atbswp-" + date.today().strftime("%Y%d%w"))
 
 
 class FileChooserCtrl:
@@ -100,14 +100,29 @@ class RecordCtrl:
 
         self.capture = [self.header]
 
+    def write_keyboard_actions(self, engine="pyautogui", move="", key=""):
+        """
+        Transform every keyDown(key) -> keyUp(key) in press(key)
+        """
+        if move == "keyDown":
+            try:
+                last_pressed = self.capture[-1].split("'")[1]
+                # Corner case: A press is the first action
+                if last_pressed == key:
+                    self.capture.pop()
+                    move = 'press'
+            except KeyError:
+                pass
+        self.capture.append(engine + "." + move + "('" + key + "')")
+
     def on_move(self, x, y):
         if not self.recording:
             return False
         b = time.perf_counter()
-        if int(b-self.last_time) > 0:
-            self.capture.append(f"time.sleep ({b - self.last_time})")
+        timeout = b - self.last_time
+        if int(timeout) > 0:
+            self.capture.append(f"time.sleep({timeout})")
         self.last_time = b
-
         self.capture.append(f"pyautogui.moveTo({x}, {y}, duration=0.1, _pause=False)")
 
     def on_click(self, x, y, button, pressed):
@@ -142,7 +157,9 @@ class RecordCtrl:
         if not self.recording:
             return False
         b = time.perf_counter()
-        self.capture.append(f"time.sleep ({b - self.last_time})")
+        timeout = b - self.last_time
+        if int(timeout) > 0:
+            self.capture.append(f"time.sleep({timeout})")
         self.last_time = b
 
         try:
@@ -151,12 +168,15 @@ class RecordCtrl:
         except AttributeError:
             if key == keyboard.Key.alt:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('option')")
+                    self.capture.append(f"pyautogui.keyDown()")
+                    self.write_keyboard_actions(move="keyDown", key='option')
                 else:
-                    self.capture.append(f"pyautogui.keyDown('alt')")
+                    self.capture.append(f"pyautogui.keyDown()")
+                    self.write_keyboard_actions(move="keyDown", key='alt')
             elif key == keyboard.Key.alt_l:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('optionleft')")
+                    self.capture.append(f"pyautogui.keyDown()")
+                    self.write_keyboard_actions(move="keyDown", key='optionleft')
                 else:
                     self.capture.append(f"pyautogui.keyDown('altleft')")
             elif key == keyboard.Key.alt_r:
@@ -258,7 +278,6 @@ class RecordCtrl:
     def on_release(self, key):
         if not self.recording:
             return False
-        #self.count_perf()
         if key == keyboard.Key.alt:
             if platform.system() == "Darwin":
                 self.capture.append(f"pyautogui.keyUp('option')")
