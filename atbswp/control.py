@@ -112,9 +112,9 @@ class RecordCtrl:
                     self.capture.pop()
                     move = 'press'
             except IndexError:
-                import pdb; pdb.set_trace()
+                pass
 
-        self.capture.append(engine + "." + move + "('" + key + "')")
+        self.capture.append(engine + "." + move + "(" + repr(key) + ")")
 
     def on_move(self, x, y):
         if not self.recording:
@@ -164,7 +164,7 @@ class RecordCtrl:
         self.last_time = b
 
         try:
-            self.write_keyboard_actions(move='keyDown', key=repr(key.char))
+            self.write_keyboard_actions(move='keyDown', key=key.char)
 
         except AttributeError:
             if key == keyboard.Key.alt:
