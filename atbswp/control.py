@@ -111,16 +111,18 @@ class RecordCtrl:
                 if last_pressed == key:
                     self.capture.pop()
                     move = 'press'
-            except KeyError:
+                import pdb; pdb.set_trace()
+            except IndexError:
                 pass
-        self.capture.append(engine + "." + move + "('" + key + "')")
+
+        self.capture.append(engine + "." + move + "(" + repr(key) + ")")
 
     def on_move(self, x, y):
         if not self.recording:
             return False
         b = time.perf_counter()
-        timeout = b - self.last_time
-        if int(timeout) > 0:
+        timeout = int(b - self.last_time)
+        if timeout > 0:
             self.capture.append(f"time.sleep({timeout})")
         self.last_time = b
         self.capture.append(f"pyautogui.moveTo({x}, {y}, duration=0.1, _pause=False)")
@@ -157,121 +159,118 @@ class RecordCtrl:
         if not self.recording:
             return False
         b = time.perf_counter()
-        timeout = b - self.last_time
-        if int(timeout) > 0:
+        timeout = int(b - self.last_time)
+        if timeout > 0:
             self.capture.append(f"time.sleep({timeout})")
         self.last_time = b
 
         try:
-            self.capture.append(f"pyautogui.keyDown({repr(key.char)})")
+            self.write_keyboard_actions(move='keyDown', key=key.char)
 
         except AttributeError:
             if key == keyboard.Key.alt:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown()")
                     self.write_keyboard_actions(move="keyDown", key='option')
                 else:
-                    self.capture.append(f"pyautogui.keyDown()")
                     self.write_keyboard_actions(move="keyDown", key='alt')
             elif key == keyboard.Key.alt_l:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown()")
                     self.write_keyboard_actions(move="keyDown", key='optionleft')
                 else:
-                    self.capture.append(f"pyautogui.keyDown('altleft')")
+                    self.write_keyboard_actions(move='keyDown', key='altleft')
             elif key == keyboard.Key.alt_r:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('optionright')")
+                    self.write_keyboard_actions(move='keyDown', key='optionright')
                 else:
-                    self.capture.append(f"pyautogui.keyDown('altright')")
+                    self.write_keyboard_actions(move='keyDown', key='altright')
             elif key == keyboard.Key.alt_gr:
-                self.capture.append(f"pyautogui.keyDown('altright')")
+                self.write_keyboard_actions(move='keyDown', key='altright')
             elif key == keyboard.Key.backspace:
-                self.capture.append(f"pyautogui.keyDown('backspace')")
+                self.write_keyboard_actions(move='keyDown', key='backspace')
             elif key == keyboard.Key.caps_lock:
-                self.capture.append(f"pyautogui.keyDown('capslock')")
+                self.write_keyboard_actions(move='keyDown', key='capslock')
             elif key == keyboard.Key.cmd:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('command')")
+                    self.write_keyboard_actions(move='keyDown', key='command')
                 else:
-                    self.capture.append(f"pyautogui.keyDown('winleft')")
+                    self.write_keyboard_actions(move='keyDown', key='winleft')
             elif key == keyboard.Key.cmd_r:
                 if platform.system() == "Darwin":
-                    self.capture.append(f"pyautogui.keyDown('cmdright')")
+                    self.write_keyboard_actions(move='keyDown', key='cmdright')
                 else:
-                    self.capture.append(f"pyautogui.keyDown('winright')")
+                    self.write_keyboard_actions(move='keyDown', key='winright')
             elif key == keyboard.Key.ctrl:
-                self.capture.append(f"pyautogui.keyDown('ctrlleft')")
+                self.write_keyboard_actions(move='keyDown', key='ctrlleft')
             elif key == keyboard.Key.ctrl_r:
-                self.capture.append(f"pyautogui.keyDown('ctrlright')")
+                self.write_keyboard_actions(move='keyDown', key='ctrlright')
             elif key == keyboard.Key.delete:
-                self.capture.append(f"pyautogui.keyDown('delete')")
+                self.write_keyboard_actions(move='keyDown', key='delete')
             elif key == keyboard.Key.down:
-                self.capture.append(f"pyautogui.keyDown('down')")
+                self.write_keyboard_actions(move='keyDown', key='down')
             elif key == keyboard.Key.end:
-                self.capture.append(f"pyautogui.keyDown('end')")
+                self.write_keyboard_actions(move='keyDown', key='end')
             elif key == keyboard.Key.enter:
-                self.capture.append(f"pyautogui.keyDown('enter')")
+                self.write_keyboard_actions(move='keyDown', key='enter')
             elif key == keyboard.Key.esc:
-                self.capture.append(f"pyautogui.keyDown('esc')")
+                self.write_keyboard_actions(move='keyDown', key='esc')
             elif key == keyboard.Key.f1:
-                self.capture.append(f"pyautogui.keyDown('f1')")
+                self.write_keyboard_actions(move='keyDown', key='f1')
             elif key == keyboard.Key.f2:
-                self.capture.append(f"pyautogui.keyDown('f2')")
+                self.write_keyboard_actions(move='keyDown', key='f2')
             elif key == keyboard.Key.f3:
-                self.capture.append(f"pyautogui.keyDown('f3')")
+                self.write_keyboard_actions(move='keyDown', key='f3')
             elif key == keyboard.Key.f4:
-                self.capture.append(f"pyautogui.keyDown('f4')")
+                self.write_keyboard_actions(move='keyDown', key='f4')
             elif key == keyboard.Key.f5:
-                self.capture.append(f"pyautogui.keyDown('f5')")
+                self.write_keyboard_actions(move='keyDown', key='f5')
             elif key == keyboard.Key.f6:
-                self.capture.append(f"pyautogui.keyDown('f6')")
+                self.write_keyboard_actions(move='keyDown', key='f6')
             elif key == keyboard.Key.f7:
-                self.capture.append(f"pyautogui.keyDown('f7')")
+                self.write_keyboard_actions(move='keyDown', key='f7')
             elif key == keyboard.Key.f8:
-                self.capture.append(f"pyautogui.keyDown('f8')")
+                self.write_keyboard_actions(move='keyDown', key='f8')
             elif key == keyboard.Key.f9:
-                self.capture.append(f"pyautogui.keyDown('f9')")
+                self.write_keyboard_actions(move='keyDown', key='f9')
             elif key == keyboard.Key.f10:
-                self.capture.append(f"pyautogui.keyDown('f10')")
+                self.write_keyboard_actions(move='keyDown', key='f10')
             elif key == keyboard.Key.f11:
-                self.capture.append(f"pyautogui.keyDown('f11')")
+                self.write_keyboard_actions(move='keyDown', key='f11')
             elif key == keyboard.Key.f12:
-                self.capture.append(f"p2autogui.keyDown('f12')")
+                self.write_keyboard_actions(move='keyDown', key='f12')
             elif key == keyboard.Key.home:
-                self.capture.append(f"pyautogui.keyDown('home')")
+                self.write_keyboard_actions(move='keyDown', key='home')
             elif key == keyboard.Key.left:
-                self.capture.append(f"pyautogui.keyDown('left')")
+                self.write_keyboard_actions(move='keyDown', key='left')
             elif key == keyboard.Key.page_down:
-                self.capture.append(f"pyautogui.keyDown('pagedown')")
+                self.write_keyboard_actions(move='keyDown', key='pagedown')
             elif key == keyboard.Key.page_up:
-                self.capture.append(f"pyautogui.keyDown('pageup')")
+                self.write_keyboard_actions(move='keyDown', key='pageup')
             elif key == keyboard.Key.right:
-                self.capture.append(f"pyautogui.keyDown('right')")
+                self.write_keyboard_actions(move='keyDown', key='right')
             elif key == keyboard.Key.shift:
-                self.capture.append(f"pyautogui.keyDown('shift_left')")
+                self.write_keyboard_actions(move='keyDown', key='shift_left')
             elif key == keyboard.Key.shift_r:
-                self.capture.append(f"pyautogui.keyDown('shiftright')")
+                self.write_keyboard_actions(move='keyDown', key='shiftright')
             elif key == keyboard.Key.space:
-                self.capture.append(f"pyautogui.keyDown('space')")
+                self.write_keyboard_actions(move='keyDown', key='space')
             elif key == keyboard.Key.tab:
-                self.capture.append(f"pyautogui.keyDown('tab')")
+                self.write_keyboard_actions(move='keyDown', key='tab')
             elif key == keyboard.Key.up:
-                self.capture.append(f"pyautogui.keyDown('up')")
+                self.write_keyboard_actions(move='keyDown', key='up')
             elif key == keyboard.Key.media_play_pause:
-                self.capture.append(f"pyautogui.keyDown('playpause')")
+                self.write_keyboard_actions(move='keyDown', key='playpause')
             elif key == keyboard.Key.insert:
-                self.capture.append(f"pyautogui.keyDown('insert')")
+                self.write_keyboard_actions(move='keyDown', key='insert')
             elif key == keyboard.Key.menu:
                 self.capture.append(f"### The menu key is not handled yet")
             elif key == keyboard.Key.num_lock:
-                self.capture.append(f"pyautogui.keyDown('num_lock')")
+                self.write_keyboard_actions(move='keyDown', key='num_lock')
             elif key == keyboard.Key.pause:
-                self.capture.append(f"pyautogui.keyDown('pause')")
+                self.write_keyboard_actions(move='keyDown', key='pause')
             elif key == keyboard.Key.print_screen:
-                self.capture.append(f"pyautogui.keyDown('print_screen')")
+                self.write_keyboard_actions(move='keyDown', key='print_screen')
             elif key == keyboard.Key.scroll_lock:
-                self.capture.append(f"pyautogui.keyDown('scroll_lock')")
+                self.write_keyboard_actions(move='keyDown', key='scroll_lock')
             else:
                 self.capture.append(f"### {key} is not supported yet")
 
