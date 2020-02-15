@@ -111,6 +111,7 @@ class RecordCtrl:
                 if last_pressed == key:
                     self.capture.pop()
                     move = 'press'
+                import pdb; pdb.set_trace()
             except IndexError:
                 pass
 
