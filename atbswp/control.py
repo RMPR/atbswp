@@ -22,9 +22,13 @@ import shutil
 import tempfile
 import time
 from datetime import date
+from multiprocessing import Process
+
+from pubsub import pub
 
 from pynput import keyboard
 from pynput import mouse
+
 
 import wx
 import wx.adv
@@ -61,9 +65,9 @@ class FileChooserCtrl:
                             defaultDir="~",
                             style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
-            self.capture = self.load_content(dlg.GetPath())
+            self._capture = self.load_content(dlg.GetPath())
             with open(TMP_PATH, 'w') as f:
-                f.write(self.capture)
+                f.write(self._capture)
         dlg.Destroy()
 
     def save_file(self, event):
@@ -90,7 +94,7 @@ class RecordCtrl:
     """
     def __init__(self):
         tmp_date = date.today().strftime("%Y %b %a")
-        self.header = (
+        self._header = (
             f"# -*- coding: latin-1 -*- \n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
             f"# on {tmp_date}\n"
@@ -98,7 +102,7 @@ class RecordCtrl:
             f"import time \n"
         )
 
-        self.capture = [self.header]
+        self._capture = [self._header]
 
     """
     def write_mouse_action(self, engine="pyautogui", move="", suffix=""):
@@ -106,13 +110,20 @@ class RecordCtrl:
     """
 
     def write_keyboard_action(self, engine="pyautogui", move="", key=""):
+        """
+        Append keyboard actions to the class variable capture
+        Keyword Arguments:
+        - engine: the module which will be used for the replay
+        - move: keyDown | keyUp
+        - key: The key pressed
+        """
         suffix = "(" + repr(key) + ")"
         if move == "keyDown":
             # Corner case: Multiple successive keyDown
-            if move + suffix in self.capture[-1]:
+            if move + suffix in self._capture[-1]:
                 move = 'press'
-                self.capture[-1] = engine + "." + move + suffix
-        self.capture.append(engine + "." + move + suffix)
+                self._capture[-1] = engine + "." + move + suffix
+        self._capture.append(engine + "." + move + suffix)
 
     def on_move(self, x, y):
         if not self.recording:
@@ -120,37 +131,36 @@ class RecordCtrl:
         b = time.perf_counter()
         timeout = int(b - self.last_time)
         if timeout > 0:
-            self.capture.append(f"time.sleep({timeout})")
+            self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
-        self.capture.append(f"pyautogui.moveTo({x}, {y}, duration=0.1, _pause=False)")
+        self._capture.append(f"pyautogui.moveTo({x}, {y})")
 
     def on_click(self, x, y, button, pressed):
         if not self.recording:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
+                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right')")
+                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right')")
             elif button == mouse.Button.middle:
-                self.capture.append(f"pyautogui.mouseDown ({x}, {y}, 'middle')")
+                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'middle')")
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'left')")
+                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'left')")
             elif button == mouse.Button.right:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right')")
+                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right')")
             elif button == mouse.Button.middle:
-                self.capture.append(f"pyautogui.mouseUp ({x}, {y}, 'middle')")
+                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'middle')")
             else:
                 wx.LogError("Mouse Button not recognized")
 
     def on_scroll(self, x, y, dx, dy):
         if not self.recording:
             return False
-        print('Scrolled {0} at {1}'.format('down' if dy < 0 else 'up', ({x}, {y})))
-        self.capture.append(f"pyautogui.scroll({dy})")
+        self._capture.append(f"pyautogui.scroll({dy})")
 
     def on_press(self, key):
         if not self.recording:
@@ -158,7 +168,7 @@ class RecordCtrl:
         b = time.perf_counter()
         timeout = int(b - self.last_time)
         if timeout > 0:
-            self.capture.append(f"time.sleep({timeout})")
+            self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
 
         try:
@@ -261,7 +271,7 @@ class RecordCtrl:
             elif key == keyboard.Key.insert:
                 self.write_keyboard_action(move='keyDown', key='insert')
             elif key == keyboard.Key.menu:
-                self.capture.append(f"### The menu key is not handled yet")
+                self._capture.append(f"### The menu key is not handled yet")
             elif key == keyboard.Key.num_lock:
                 self.write_keyboard_action(move='keyDown', key='num_lock')
             elif key == keyboard.Key.pause:
@@ -271,7 +281,7 @@ class RecordCtrl:
             elif key == keyboard.Key.scroll_lock:
                 self.write_keyboard_action(move='keyDown', key='scroll_lock')
             else:
-                self.capture.append(f"### {key} is not supported yet")
+                self._capture.append(f"### {key} is not supported yet")
 
     def on_release(self, key):
         if not self.recording:
@@ -370,7 +380,7 @@ class RecordCtrl:
         elif key == keyboard.Key.insert:
             self.write_keyboard_action(move='keyUp', key='insert')
         elif key == keyboard.Key.menu:
-            self.capture.append(f"### The menu key is not handled yet")
+            self._capture.append(f"### The menu key is not handled yet")
         elif key == keyboard.Key.num_lock:
             self.write_keyboard_action(move='keyUp', key='num_lock')
         elif key == keyboard.Key.pause:
@@ -402,9 +412,9 @@ class RecordCtrl:
             self.recording = False
             with open(TMP_PATH, 'w') as f:
                 f.seek(0)
-                f.write("\n".join(self.capture))
+                f.write("\n".join(self._capture))
                 f.truncate()
-            self.capture = [self.header]
+            self._capture = [self._header]
 
 
 class PlayCtrl:
@@ -414,16 +424,27 @@ class PlayCtrl:
     global TMP_PATH
 
     def __init__(self):
-        pass
+        self.play_process = Process()
+
+    def play(self, capture, event):
+        print('process id:', os.getpid())
+        exec(capture)
+        pub.sendMessage("EXECUTION_COMPLETE", message="All good")
+        event.GetEventObject().SetValue(False)
 
     def action(self, event):
-        if TMP_PATH is None or not os.path.isfile(TMP_PATH):
-            wx.LogError(f"{TMP_PATH} doesn't seem to exist")
-            return
-        with open(TMP_PATH, 'r') as f:
-            capture = f.read()
-        exec(capture)
-        event.GetEventObject().SetValue(False)
+        if event.GetEventObject().GetValue():
+            if TMP_PATH is None or not os.path.isfile(TMP_PATH):
+                wx.LogError("There are no capture loaded")
+                return
+            with open(TMP_PATH, 'r') as f:
+                capture = f.read()
+            self.play_process = Process(target=self.play,
+                                        args=(capture, event,))
+            self.play_process.start()
+        else:
+            self.play_process.terminate()
+            event.GetEventObject().SetValue(False)
 
 
 class SettingsCtrl:
