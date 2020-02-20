@@ -26,10 +26,12 @@ from pathlib import Path
 
 import control
 
+from pubsub import pub
+
 import wx
 
 
-class MainDialog(wx.Dialog):
+class MainDialog(wx.Dialog, wx.MiniFrame):
     """
     Main windows of the app, it's a dialog to display_button the app correctly
     even with tiling WMs
@@ -96,8 +98,6 @@ class MainDialog(wx.Dialog):
                                                          wx.BITMAP_TYPE_ANY))
         self.settings_button.SetToolTip(self.app_text[5])
 
-        self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
-
         self.help_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
                                            wx.Bitmap(os.path.join(path, "img", "question-circle.png"),
@@ -132,6 +132,15 @@ class MainDialog(wx.Dialog):
         # help_button_ctrl
         hbc = control.HelpCtrl()
         self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
+
+        self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
+
+    def _toggle_after_execution(self, message=""):
+        btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
+        btnEvent.EventObject = self.file_open_button
+        btnEvent.Checked = True
+        print(self.ProcessEvent(btnEvent))
+        self.play_button.Update()
 
     def __set_properties(self):
         self.file_open_button.SetSize(self.file_open_button.GetBestSize())
