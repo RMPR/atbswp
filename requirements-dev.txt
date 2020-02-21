@@ -34,7 +34,6 @@ PyMsgBox==1.0.7
 pynput==1.6.0
 pyparsing==2.4.5
 pyperclip==1.7.0
-Pypubsub==4.0.3
 PyRect==0.1.4
 pyrsistent==0.14.11
 PyScreeze==0.1.25
