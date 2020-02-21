@@ -22,7 +22,7 @@ import shutil
 import tempfile
 import time
 from datetime import date
-from multiprocessing import Process
+from threading import Thread
 
 from pubsub import pub
 
@@ -424,27 +424,28 @@ class PlayCtrl:
     global TMP_PATH
 
     def __init__(self):
-        self.play_process = Process()
+        pass
 
-    def play(self, capture, event):
-        print('process id:', os.getpid())
+    def play(self, capture, toggle_button):
         exec(capture)
-        pub.sendMessage("EXECUTION_COMPLETE", message="All good")
-        event.GetEventObject().SetValue(False)
+        toggle_button.Value = False
 
     def action(self, event):
-        if event.GetEventObject().GetValue():
+        play_thread = Thread()
+        toggle_button = event.GetEventObject()
+        if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("There are no capture loaded")
                 return
             with open(TMP_PATH, 'r') as f:
                 capture = f.read()
-            self.play_process = Process(target=self.play,
-                                        args=(capture, event,))
-            self.play_process.start()
+            play_thread.daemon = True
+            play_thread = Thread(target=self.play,
+                                      args=(capture, toggle_button,))
+            play_thread.start()
         else:
-            self.play_process.terminate()
-            event.GetEventObject().SetValue(False)
+            play_thread._stop()  # Can be deprecated
+            toggle_button.Value = False
 
 
 class SettingsCtrl:

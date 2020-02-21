@@ -128,7 +128,6 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         # play_button_ctrl
         pbc = control.PlayCtrl()
         self.Bind(wx.EVT_TOGGLEBUTTON, pbc.action, self.play_button)
-        pub.subscribe(self._toggle_after_execution, "EXECUTION_COMPLETE")
 
         # help_button_ctrl
         hbc = control.HelpCtrl()
@@ -137,20 +136,11 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
 
     def _toggle_after_execution(self, message=""):
-        print(f"Received the following message: {message}")
-        """
-        btnEvent = wx.CommandEvent(wx.wxEVT_COMMAND_TOGGLEBUTTON_CLICKED)
-        btnEvent.EventObject = self.play_button
-        btnEvent.Value = False
-        print(self.play_button.GetEventHandler().ProcessEvent(btnEvent))
-        """
         btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
         btnEvent.EventObject = self.file_open_button
         btnEvent.Checked = True
         print(self.ProcessEvent(btnEvent))
-        self.play_button.Value = False
         self.play_button.Update()
-        print(self.play_button.Value)
 
     def __set_properties(self):
         self.file_open_button.SetSize(self.file_open_button.GetBestSize())
