@@ -24,7 +24,7 @@ import time
 from datetime import date
 from threading import Thread
 
-from pubsub import pub
+import pyautogui
 
 from pynput import keyboard
 from pynput import mouse
@@ -35,6 +35,13 @@ import wx.adv
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%d%w"))
+HEADER = (
+            f"#!/bin/env python3\n"
+            f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
+            f"# on {tmp_date}\n"
+            f"import pyautogui \n"
+            f"import time \n"
+        )
 
 
 class FileChooserCtrl:
@@ -58,7 +65,6 @@ class FileChooserCtrl:
             return f.read()
 
     def load_file(self, event):
-        global TMP_PATH
         title = "Choose a capture file:"
         dlg = wx.FileDialog(self.parent,
                             message=title,
@@ -94,20 +100,21 @@ class RecordCtrl:
     """
     def __init__(self):
         tmp_date = date.today().strftime("%Y %b %a")
-        self._header = (
-            f"# -*- coding: latin-1 -*- \n"
-            f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-            f"# on {tmp_date}\n"
-            f"import pyautogui \n"
-            f"import time \n"
-        )
+        self._header = HEADER
 
         self._capture = [self._header]
+        self._lastx, self._lasty = pyautogui.position()
+        self.mouse_sensibility = 10
 
-    """
-    def write_mouse_action(self, engine="pyautogui", move="", suffix=""):
-        # TODO: Refactor mouse actions
-    """
+    def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
+        if move == "moveTo":
+            coordinates = [int(s) for s in parameters.split(", ") if s.isdigit()]
+            if coordinates[0] - self._lastx < self.mouse_sensibility \
+               and coordinates[1] - self._lasty < self.mouse_sensibility:
+                return
+            else:
+                self._lastx, self._lasty = coordinates
+        self._capture.append(engine + "." + move + '(' + parameters + ')')
 
     def write_keyboard_action(self, engine="pyautogui", move="", key=""):
         """
@@ -133,34 +140,34 @@ class RecordCtrl:
         if timeout > 0:
             self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
-        self._capture.append(f"pyautogui.moveTo({x}, {y})")
+        self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
 
     def on_click(self, x, y, button, pressed):
         if not self.recording:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'left')")
+                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'right')")
+                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self._capture.append(f"pyautogui.mouseDown ({x}, {y}, 'middle')")
+                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'left')")
+                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'right')")
+                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self._capture.append(f"pyautogui.mouseUp ({x}, {y}, 'middle')")
+                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
 
     def on_scroll(self, x, y, dx, dy):
         if not self.recording:
             return False
-        self._capture.append(f"pyautogui.scroll({dy})")
+        self.write_mouse_action(move="scroll", parameters=f"{y}")
 
     def on_press(self, key):
         if not self.recording:
@@ -441,7 +448,7 @@ class PlayCtrl:
                 capture = f.read()
             play_thread.daemon = True
             play_thread = Thread(target=self.play,
-                                      args=(capture, toggle_button,))
+                                 args=(capture, toggle_button,))
             play_thread.start()
         else:
             play_thread._stop()  # Can be deprecated
@@ -453,14 +460,6 @@ class SettingsCtrl:
     Control class for the settings
     """
     def action(self, event):
-        pass
-
-
-class HelpCtrl:
-    """
-    Control class for the About menu
-    """
-    def action(self, event):
         info = wx.adv.AboutDialogInfo()
         info.Name = "atbswp"
         info.Version = "v0.1"
@@ -470,3 +469,12 @@ class HelpCtrl:
         info.Developers = ["Mairo Paul Rufus"]
         info.License = "GNU General Public License V3"
         wx.adv.AboutBox(info)
+
+
+class HelpCtrl:
+    """
+    Control class for the About menu
+    """
+    def action(self, event):
+        url = "https://youtu.be/L0jjSgX5FYk"
+        wx.LaunchDefaultBrowser(url, flags=0)

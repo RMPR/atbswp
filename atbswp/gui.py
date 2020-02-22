@@ -26,8 +26,6 @@ from pathlib import Path
 
 import control
 
-from pubsub import pub
-
 import wx
 
 
@@ -133,6 +131,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         hbc = control.HelpCtrl()
         self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
 
+        # settings_button_ctrl
+        sbc = control.SettingsCtrl()
+        self.Bind(wx.EVT_BUTTON, sbc.action, self.settings_button)
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
 
     def _toggle_after_execution(self, message=""):

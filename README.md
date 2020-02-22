@@ -38,3 +38,11 @@ If you use it for something really cool you can always reach me at akoudanilo(at
 a PR :). Bonus points if you have a demo video.
 # Contributions
 Contributions are welcomed, see [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+# Known issues
+On Linux, this only works with Xorg, with wayland support coming soon, for now you have to
+enable Xorg. 
+
+```
+sudo sed 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm/custom.conf -i # on Gnome
+```
