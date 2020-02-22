@@ -57,7 +57,7 @@ show-venv: $(VENV)/activate  ## Show venv parameters
 >	@$(VENV)/pip --version
 > @echo
 
-clean-venv:  ##  Remove virtual environment
+clean-venv:  ## Remove virtual environment
 > @rm --force --recursive bin/
 > @rm --force --recursive include/
 > @rm --force --recursive lib/
