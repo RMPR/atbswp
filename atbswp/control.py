@@ -34,11 +34,11 @@ import wx
 import wx.adv
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
-                        "atbswp-" + date.today().strftime("%Y%d%w"))
+                        "atbswp-" + date.today().strftime("%Y%m%w"))
 HEADER = (
             f"#!/bin/env python3\n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-            f"# on {tmp_date}\n"
+            f"# on {date.today().strftime('%a %b %Y ')}\n"
             f"import pyautogui \n"
             f"import time \n"
         )
@@ -99,12 +99,11 @@ class RecordCtrl:
     capture -- current recording
     """
     def __init__(self):
-        tmp_date = date.today().strftime("%Y %b %a")
         self._header = HEADER
 
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
-        self.mouse_sensibility = 10
+        self.mouse_sensibility = 20
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
@@ -446,6 +445,10 @@ class PlayCtrl:
                 return
             with open(TMP_PATH, 'r') as f:
                 capture = f.read()
+            if capture == HEADER:
+                wx.LogError("No capture recorded")
+                toggle_button.Value = False
+                return
             play_thread.daemon = True
             play_thread = Thread(target=self.play,
                                  args=(capture, toggle_button,))
