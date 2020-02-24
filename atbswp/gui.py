@@ -65,6 +65,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         path = Path(__file__).parent.absolute()
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
+        self.SetIcon(wx.Icon(os.path.join(path, "img", "icon.png")))
         self.file_open_button = wx.BitmapButton(self,
                                                 wx.ID_ANY,
                                                 wx.Bitmap(os.path.join(path, "img", "file-upload.png"),

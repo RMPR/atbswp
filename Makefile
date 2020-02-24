@@ -45,7 +45,7 @@ clean-build: $(VENV)/activate ## Clean previous build
 > make build
 
 build: $(VENV)/activate ## Build the project for the current platform
-> $(PYINSTALLER) $(WORKDIR)/atbswp.py && \
+> $(PYINSTALLER) --icon=$(WORDIR)/img/icon.png $(WORKDIR)/atbswp.py && \
 > cp -r $(WORKDIR)/img dist/atbswp/
 
 run: $(VENV)/activate  ## Launch the project
