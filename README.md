@@ -24,6 +24,7 @@ cd atbswp\
 pip install wxPython 
 pip install -r requirements-dev.txt
 python atbswp\atbswp.py
+```
 
 # Demo
 
