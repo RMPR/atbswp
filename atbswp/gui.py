@@ -15,17 +15,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """
 This module contains all the classes needed to
 create the GUI
 """
-
 import os
 from pathlib import Path
 
 import control
-
 import wx
 
 

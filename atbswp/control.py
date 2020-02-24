@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import os
 import platform
 import shutil
@@ -25,13 +24,9 @@ from datetime import date
 from threading import Thread
 
 import pyautogui
-
+import wx.adv
 from pynput import keyboard
 from pynput import mouse
-
-
-import wx
-import wx.adv
 
 TMP_PATH = os.path.join(
     tempfile.gettempdir(), "atbswp-" + date.today().strftime("%Y%m%w")
