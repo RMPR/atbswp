@@ -1,27 +1,35 @@
 # Atbswp
-Literally Automate the boring stuff with python, allows the user to record his mouse and keyboard 
-actions and reproduce them identically as many times as he wants.
+
+Literally Automate the boring stuff with python, allows the user to record his
+mouse and keyboard actions and reproduce them identically as many times as he
+wants.
 
 # Install instructions
+
 Fedora
+
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
 sudo dnf install python3-wxpython4
 make prepare-dev
 make run
 ```
+
 Debian
+
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
 sudo apt install python3-wxgtk4.0
 pip install -r requirements.txt
 python atbswp/atbswp.py
 ```
+
 Windows
+
 ```shell
 git clone https://github.com/rmpr/atbswp
 cd atbswp\
-pip install wxPython 
+pip install wxPython
 pip install -r requirements-dev.txt
 python atbswp\atbswp.py
 
@@ -41,8 +49,13 @@ Contributions are welcomed, see [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 # Known issues
 On Linux, this only works with Xorg, with wayland support coming soon, for now you have to
-enable Xorg. 
+enable Xorg.
 
 ```
-sudo sed 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm/custom.conf -i # on Gnome
+
+sudo sed 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm/custom.conf -i #
+on Gnome
+
+```
+
 ```
