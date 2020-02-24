@@ -36,12 +36,12 @@ import wx.adv
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%w"))
 HEADER = (
-            f"#!/bin/env python3\n"
-            f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-            f"# on {date.today().strftime('%a %b %Y ')}\n"
-            f"import pyautogui \n"
-            f"import time \n"
-        )
+    f"#!/bin/env python3\n"
+    f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
+    f"# on {date.today().strftime('%a %b %Y ')}\n"
+    f"import pyautogui \n"
+    f"import time \n"
+)
 
 
 class FileChooserCtrl:
@@ -98,6 +98,7 @@ class RecordCtrl:
     keyboard.Keyword arguments:
     capture -- current recording
     """
+
     def __init__(self):
         self._header = HEADER
 
@@ -107,7 +108,8 @@ class RecordCtrl:
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
-            coordinates = [int(s) for s in parameters.split(", ") if s.isdigit()]
+            coordinates = [int(s)
+                           for s in parameters.split(", ") if s.isdigit()]
             if coordinates[0] - self._lastx < self.mouse_sensibility \
                and coordinates[1] - self._lasty < self.mouse_sensibility:
                 return
@@ -146,20 +148,26 @@ class RecordCtrl:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'left'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'right'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'middle'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'left'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'right'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'middle'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
 
@@ -190,12 +198,14 @@ class RecordCtrl:
                     self.write_keyboard_action(move="keyDown", key='alt')
             elif key == keyboard.Key.alt_l:
                 if platform.system() == "Darwin":
-                    self.write_keyboard_action(move="keyDown", key='optionleft')
+                    self.write_keyboard_action(
+                        move="keyDown", key='optionleft')
                 else:
                     self.write_keyboard_action(move='keyDown', key='altleft')
             elif key == keyboard.Key.alt_r:
                 if platform.system() == "Darwin":
-                    self.write_keyboard_action(move='keyDown', key='optionright')
+                    self.write_keyboard_action(
+                        move='keyDown', key='optionright')
                 else:
                     self.write_keyboard_action(move='keyDown', key='altright')
             elif key == keyboard.Key.alt_gr:
@@ -395,7 +405,7 @@ class RecordCtrl:
             self.write_keyboard_action(move='keyUp', key='print_screen')
         elif key == keyboard.Key.scroll_lock:
             self.write_keyboard_action(move='keyUp', key='scroll_lock')
-        elif key == keyboard._xorg.KeyCode(269025067): # Fn Key
+        elif key == keyboard._xorg.KeyCode(269025067):  # Fn Key
             pass
         else:
             self.write_keyboard_action(move='keyUp', key=key)
@@ -462,6 +472,7 @@ class SettingsCtrl:
     """
     Control class for the settings
     """
+
     def action(self, event):
         info = wx.adv.AboutDialogInfo()
         info.Name = "atbswp"
@@ -478,6 +489,7 @@ class HelpCtrl:
     """
     Control class for the About menu
     """
+
     def action(self, event):
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
