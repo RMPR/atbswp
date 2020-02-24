@@ -78,46 +78,51 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.file_open_button = wx.BitmapButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "file-upload.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "file-upload.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.file_open_button.SetToolTip(self.app_text[0])
         self.save_button = wx.BitmapButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "save.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "save.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.save_button.SetToolTip(self.app_text[1])
         self.record_button = wx.BitmapToggleButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "video.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "video.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.record_button.SetToolTip(self.app_text[2])
         self.play_button = wx.BitmapToggleButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "play-circle.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "download.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "download.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.compile_button.SetToolTip(self.app_text[4])
         self.settings_button = wx.BitmapButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(os.path.join(path, "img", "cog.png"), wx.BITMAP_TYPE_ANY),
+            wx.Bitmap(os.path.join(path, "img", "cog.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.settings_button.SetToolTip(self.app_text[5])
 
         self.help_button = wx.BitmapButton(
             self,
             wx.ID_ANY,
-            wx.Bitmap(
-                os.path.join(path, "img", "question-circle.png"), wx.BITMAP_TYPE_ANY
-            ),
+            wx.Bitmap(os.path.join(path, "img", "question-circle.png"),
+                      wx.BITMAP_TYPE_ANY),
         )
         self.help_button.SetToolTip(self.app_text[6])
 

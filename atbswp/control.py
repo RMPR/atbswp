@@ -28,16 +28,13 @@ import wx.adv
 from pynput import keyboard
 from pynput import mouse
 
-TMP_PATH = os.path.join(
-    tempfile.gettempdir(), "atbswp-" + date.today().strftime("%Y%m%w")
-)
-HEADER = (
-    f"#!/bin/env python3\n"
-    f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-    f"# on {date.today().strftime('%a %b %Y ')}\n"
-    f"import pyautogui \n"
-    f"import time \n"
-)
+TMP_PATH = os.path.join(tempfile.gettempdir(),
+                        "atbswp-" + date.today().strftime("%Y%m%w"))
+HEADER = (f"#!/bin/env python3\n"
+          f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
+          f"# on {date.today().strftime('%a %b %Y ')}\n"
+          f"import pyautogui \n"
+          f"import time \n")
 
 
 class FileChooserCtrl:
@@ -62,9 +59,10 @@ class FileChooserCtrl:
 
     def load_file(self, event):
         title = "Choose a capture file:"
-        dlg = wx.FileDialog(
-            self.parent, message=title, defaultDir="~", style=wx.DD_DEFAULT_STYLE
-        )
+        dlg = wx.FileDialog(self.parent,
+                            message=title,
+                            defaultDir="~",
+                            style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             self._capture = self.load_content(dlg.GetPath())
             with open(TMP_PATH, "w") as f:
@@ -73,10 +71,10 @@ class FileChooserCtrl:
 
     def save_file(self, event):
         with wx.FileDialog(
-            self.parent,
-            "Save capture file",
-            wildcard="*",
-            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                self.parent,
+                "Save capture file",
+                wildcard="*",
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
         ) as fileDialog:
 
             if fileDialog.ShowModal() == wx.ID_CANCEL:
@@ -107,11 +105,11 @@ class RecordCtrl:
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
-            coordinates = [int(s) for s in parameters.split(", ") if s.isdigit()]
-            if (
-                coordinates[0] - self._lastx < self.mouse_sensibility
-                and coordinates[1] - self._lasty < self.mouse_sensibility
-            ):
+            coordinates = [
+                int(s) for s in parameters.split(", ") if s.isdigit()
+            ]
+            if (coordinates[0] - self._lastx < self.mouse_sensibility
+                    and coordinates[1] - self._lasty < self.mouse_sensibility):
                 return
             else:
                 self._lastx, self._lasty = coordinates
@@ -148,28 +146,26 @@ class RecordCtrl:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self.write_mouse_action(
-                    move="mouseDown", parameters=f"{x}, {y}, 'left'"
-                )
+                self.write_mouse_action(move="mouseDown",
+                                        parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(
-                    move="mouseDown", parameters=f"{x}, {y}, 'right'"
-                )
+                self.write_mouse_action(move="mouseDown",
+                                        parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(
-                    move="mouseDown", parameters=f"{x}, {y}, 'middle'"
-                )
+                self.write_mouse_action(move="mouseDown",
+                                        parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'left'")
+                self.write_mouse_action(move="mouseUp",
+                                        parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'right'")
+                self.write_mouse_action(move="mouseUp",
+                                        parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(
-                    move="mouseUp", parameters=f"{x}, {y}, 'middle'"
-                )
+                self.write_mouse_action(move="mouseUp",
+                                        parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
 
@@ -200,12 +196,14 @@ class RecordCtrl:
                     self.write_keyboard_action(move="keyDown", key="alt")
             elif key == keyboard.Key.alt_l:
                 if platform.system() == "Darwin":
-                    self.write_keyboard_action(move="keyDown", key="optionleft")
+                    self.write_keyboard_action(move="keyDown",
+                                               key="optionleft")
                 else:
                     self.write_keyboard_action(move="keyDown", key="altleft")
             elif key == keyboard.Key.alt_r:
                 if platform.system() == "Darwin":
-                    self.write_keyboard_action(move="keyDown", key="optionright")
+                    self.write_keyboard_action(move="keyDown",
+                                               key="optionright")
                 else:
                     self.write_keyboard_action(move="keyDown", key="altright")
             elif key == keyboard.Key.alt_gr:
@@ -411,12 +409,11 @@ class RecordCtrl:
             self.write_keyboard_action(move="keyUp", key=key)
 
     def action(self, event):
-        listener_mouse = mouse.Listener(
-            on_move=self.on_move, on_click=self.on_click, on_scroll=self.on_scroll
-        )
-        listener_keyboard = keyboard.Listener(
-            on_press=self.on_press, on_release=self.on_release
-        )
+        listener_mouse = mouse.Listener(on_move=self.on_move,
+                                        on_click=self.on_click,
+                                        on_scroll=self.on_scroll)
+        listener_keyboard = keyboard.Listener(on_press=self.on_press,
+                                              on_release=self.on_release)
 
         if event.GetEventObject().GetValue():
             listener_keyboard.start()
@@ -460,7 +457,11 @@ class PlayCtrl:
                 toggle_button.Value = False
                 return
             play_thread.daemon = True
-            play_thread = Thread(target=self.play, args=(capture, toggle_button,))
+            play_thread = Thread(target=self.play,
+                                 args=(
+                                     capture,
+                                     toggle_button,
+                                 ))
             play_thread.start()
         else:
             play_thread._stop()  # Can be deprecated
