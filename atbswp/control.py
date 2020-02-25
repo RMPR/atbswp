@@ -441,12 +441,13 @@ class PlayCtrl:
         toggle_button = event.GetEventObject()
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
-                wx.LogError("There are no capture loaded")
+                wx.LogError("No capture loaded")
+                toggle_button.Value = False
                 return
             with open(TMP_PATH, 'r') as f:
                 capture = f.read()
             if capture == HEADER:
-                wx.LogError("No capture recorded")
+                wx.LogError("Empty capture")
                 toggle_button.Value = False
                 return
             play_thread.daemon = True

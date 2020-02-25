@@ -18,7 +18,7 @@
 
 """
 This module contains all the classes needed to
-create the GUI
+create the GUI and handle non functionnal event
 """
 
 import os
@@ -137,6 +137,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_BUTTON, sbc.action, self.settings_button)
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
 
+        self.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
+
     def _toggle_after_execution(self, message=""):
         btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
         btnEvent.EventObject = self.file_open_button
@@ -166,3 +168,19 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Centre()
         main_sizer.Fit(self)
         self.Layout()
+
+    def OnExitApp(self, event):
+        self.Destroy()
+
+    def OnCloseFrame(self, event):
+        dialog = wx.MessageDialog(self,
+                                  message="Are you sure you want to quit?",
+                                  caption="Caption",
+                                  style=wx.YES_NO,
+                                  pos=wx.DefaultPosition)
+        response = dialog.ShowModal()
+
+        if (response == wx.ID_YES):
+            self.OnExitApp(event)
+        else:
+            event.StopPropagation()
