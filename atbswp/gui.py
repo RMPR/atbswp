@@ -30,34 +30,55 @@ import wx
 import wx.adv
 
 
+APP_TEXT = ["Load Capture", "Save", "Start/Stop Capture", "Play",
+            "Compile to executable", "Preferences", "Help"]
+SETTINGS_TEXT = ["Play &Speed: Fast", "&Continuous Playback", 
+                 "&Repeat Playback Loops", "Recording &Hotkey", 
+                 "&Playback Hotkey", "Always on &Top", "&About", 
+                 "&Exit"]
+
+
 class MainDialog(wx.Dialog, wx.MiniFrame):
     """
     Main windows of the app, it's a dialog to display_button the app correctly
     even with tiling WMs
     """
-    app_text = ["Load Capture", "Save", "Start/Stop Capture", "Play",
-                "Compile to executable", "Preferences", "Help"]
-    settings_text = ["&Continuous Playback", "&Repeat Playback Loops",
-                     "&Recording Hotkey", "&Playback Hotkey", "&Always on Top",
-                     "About"]
-
     def on_settings_click(self, event):
-        self.MakeThePopup()
-        self.settings_button.PopupMenu(self.settingspopupmenu)
+        self.settings_popup()
+        event.GetEventObject().PopupMenu(self.settings_popup())
         event.Skip()
 
-    def MakeThePopup(self):
+    def settings_popup(self):
         menu = wx.Menu()
-        menu.Append(wx.ID_ANY, self.settings_text[0])
-        menu.Append(wx.ID_ANY, self.settings_text[1])
+        ps = menu.Append(wx.ID_ANY, SETTINGS_TEXT[0])
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.playback_speed,
+                  ps)
+        ps.Enable(False)
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.continuous_playback,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[1]))
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.repeat_count,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[2]))
         menu.AppendSeparator()
-        menu.Append(wx.ID_ANY, self.settings_text[2])
-        menu.Append(wx.ID_ANY, self.settings_text[3])
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.recording_hotkey,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[3]))
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.playback_hotkey,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[4]))
         menu.AppendSeparator()
-        menu.Append(wx.ID_ANY, self.settings_text[4])
-        menu.AppendSeparator()
-        menu.Append(wx.ID_ANY, self.settings_text[5])
-        self.settingspopupmenu = menu
+        self.Bind(wx.EVT_MENU,
+                  control.SettingsCtrl.always_on_top,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[5]))
+        self.Bind(wx.EVT_MENU,
+                  self.on_about,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[6]))
+        self.Bind(wx.EVT_MENU,
+                  self.on_close_dialog,
+                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[7]))
+        return menu
 
     def __init__(self, *args, **kwds):
         """
@@ -66,43 +87,48 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         path = Path(__file__).parent.absolute()
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
-        self.SetIcon(wx.Icon(os.path.join(path, "img", "icon.png")))
+        self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))
+        self.SetIcon(self.icon)
+        self.taskbar = TaskBarIcon(self)
+        self.taskbar.CreatePopupMenu = self.settings_popup
+        self.taskbar.SetIcon(self.icon, "atbswp")
+
         self.file_open_button = wx.BitmapButton(self,
                                                 wx.ID_ANY,
                                                 wx.Bitmap(os.path.join(path, "img", "file-upload.png"),
                                                           wx.BITMAP_TYPE_ANY))
-        self.file_open_button.SetToolTip(self.app_text[0])
+        self.file_open_button.SetToolTip(APP_TEXT[0])
         self.save_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
                                            wx.Bitmap(os.path.join(path, "img", "save.png"),
                                                      wx.BITMAP_TYPE_ANY))
-        self.save_button.SetToolTip(self.app_text[1])
+        self.save_button.SetToolTip(APP_TEXT[1])
         self.record_button = wx.BitmapToggleButton(self,
                                                    wx.ID_ANY,
                                                    wx.Bitmap(os.path.join(path, "img", "video.png"),
                                                              wx.BITMAP_TYPE_ANY))
-        self.record_button.SetToolTip(self.app_text[2])
+        self.record_button.SetToolTip(APP_TEXT[2])
         self.play_button = wx.BitmapToggleButton(self,
                                                  wx.ID_ANY,
                                                  wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
                                                            wx.BITMAP_TYPE_ANY))
-        self.play_button.SetToolTip(self.app_text[3])
+        self.play_button.SetToolTip(APP_TEXT[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
                                               wx.Bitmap(os.path.join(path, "img", "download.png"),
                                                         wx.BITMAP_TYPE_ANY))
-        self.compile_button.SetToolTip(self.app_text[4])
+        self.compile_button.SetToolTip(APP_TEXT[4])
         self.settings_button = wx.BitmapButton(self,
                                                wx.ID_ANY,
                                                wx.Bitmap(os.path.join(path, "img", "cog.png"),
                                                          wx.BITMAP_TYPE_ANY))
-        self.settings_button.SetToolTip(self.app_text[5])
+        self.settings_button.SetToolTip(APP_TEXT[5])
 
         self.help_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
                                            wx.Bitmap(os.path.join(path, "img", "question-circle.png"),
                                                      wx.BITMAP_TYPE_ANY))
-        self.help_button.SetToolTip(self.app_text[6])
+        self.help_button.SetToolTip(APP_TEXT[6])
 
         self.__add_bindings()
         self.__set_properties()
@@ -134,11 +160,11 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
 
         # settings_button_ctrl
-        sbc = control.SettingsCtrl()
-        self.Bind(wx.EVT_BUTTON, sbc.action, self.settings_button)
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
 
-        self.Bind(wx.EVT_CLOSE, self.OnCloseFrame)
+        self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
+
+        self.Bind(wx.EVT_KEY_DOWN, self.on_key_press)
 
     def _toggle_after_execution(self, message=""):
         btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
@@ -170,10 +196,19 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         main_sizer.Fit(self)
         self.Layout()
 
-    def OnExitApp(self, event):
-        self.Destroy()
+    def on_key_press(self, event):
+        keycode = event.GetKeycode()
 
-    def OnCloseFrame(self, event):
+        if keycode == wx.WXK_F1:
+            control.HelpCtrl.action()
+        else:
+            event.Skip()
+
+    def on_exit_app(self, event):
+        self.Destroy()
+        self.taskbar.Destroy()
+
+    def on_close_dialog(self, event):
         dialog = wx.MessageDialog(self,
                                   message="Are you sure you want to quit?",
                                   caption="Caption",
@@ -182,60 +217,25 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         response = dialog.ShowModal()
 
         if (response == wx.ID_YES):
-            self.OnExitApp(event)
+            self.on_exit_app(event)
         else:
             event.StopPropagation()
 
-
-TRAY_TOOLTIP = 'Name'
-TRAY_ICON = 'icon.png'
-
-def create_menu_item(menu, label, func):
-    item = wx.MenuItem(menu, -1, label)
-    menu.Bind(wx.EVT_MENU, func, id=item.GetId())
-    menu.Append(item)
-    return item
+    def on_about(self, event):
+        info = wx.adv.AboutDialogInfo()
+        info.Name = "atbswp"
+        info.Version = "v0.1"
+        info.Copyright = ("(C) 2019 Mairo Paul Rufus <akoudanilo@gmail.com>\n")
+        info.Description = "Record mouse and keyboard actions and reproduce them identically at will"
+        info.WebSite = ("https://github.com/atbswp", "Project homepage")
+        info.Developers = ["Mairo Paul Rufus"]
+        info.License = "GNU General Public License V3"
+        info.Icon = self.icon
+        wx.adv.AboutBox(info)
 
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
-    def __init__(self, frame):
-        self.frame = frame
+    def __init__(self, parent):
+        self.parent = parent
         super(TaskBarIcon, self).__init__()
-        self.set_icon(TRAY_ICON)
-        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
 
-    def CreatePopupMenu(self):
-        menu = wx.Menu()
-        create_menu_item(menu, 'Site', self.on_hello)
-        menu.AppendSeparator()
-        create_menu_item(menu, 'Exit', self.on_exit)
-        return menu
-
-    def set_icon(self, path):
-        icon = wx.Icon(path)
-        self.SetIcon(icon, TRAY_TOOLTIP)
-
-    def on_left_down(self, event):
-        print ('Tray icon was left-clicked.')
-
-    def on_hello(self, event):
-        print ('Hello, world!')
-
-    def on_exit(self, event):
-        wx.CallAfter(self.Destroy)
-        self.frame.Close()
-
-class App(wx.App):
-    def OnInit(self):
-        frame=wx.Frame(None)
-        self.SetTopWindow(frame)
-        TaskBarIcon(frame)
-        return True
-
-def main():
-    app = App(False)
-    app.MainLoop()
-
-
-if __name__ == '__main__':
-    main()

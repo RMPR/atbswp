@@ -22,6 +22,7 @@ import shutil
 import tempfile
 import time
 from datetime import date
+from pathlib import Path
 from threading import Thread
 
 import pyautogui
@@ -104,6 +105,7 @@ class RecordCtrl:
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
         self.mouse_sensibility = 20
+        self.path = Path(__file__).parent.absolute()
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
@@ -414,6 +416,7 @@ class RecordCtrl:
             listener_mouse.start()
             self.last_time = time.perf_counter()
             self.recording = True
+            recording_state = wx.Icon(os.path.join(self.path, "img", "icon-recording.png"))
         else:
             self.recording = False
             with open(TMP_PATH, 'w') as f:
@@ -421,6 +424,8 @@ class RecordCtrl:
                 f.write("\n".join(self._capture))
                 f.truncate()
             self._capture = [self._header]
+            recording_state = wx.Icon(os.path.join(self.path, "img", "icon.png"))
+        event.GetEventObject().GetParent().taskbar.SetIcon(recording_state)
 
 
 class PlayCtrl:
@@ -463,22 +468,37 @@ class SettingsCtrl:
     """
     Control class for the settings
     """
-    def action(self, event):
-        info = wx.adv.AboutDialogInfo()
-        info.Name = "atbswp"
-        info.Version = "v0.1"
-        info.Copyright = ("(C) 2019 Mairo Paul Rufus <akoudanilo@gmail.com>\n")
-        info.Description = "Record mouse and keyboard actions and reproduce them identically at will"
-        info.WebSite = ("https://github.com/atbswp", "Project homepage")
-        info.Developers = ["Mairo Paul Rufus"]
-        info.License = "GNU General Public License V3"
-        wx.adv.AboutBox(info)
+    @staticmethod
+    def playback_speed(event):
+        # TODO: To implement
+        pass
+
+    @staticmethod
+    def continuous_playback(event):
+        print("Continuous Playback")
+
+    @staticmethod
+    def repeat_count(event):
+        print("Repeat Count")
+
+    @staticmethod
+    def recording_hotkey(event):
+        print("Recording hotkey")
+
+    @staticmethod
+    def playback_hotkey(event):
+        print("Recording hotkey")
+
+    @staticmethod
+    def always_on_top(event):
+        print("Always on top")
 
 
 class HelpCtrl:
     """
     Control class for the About menu
     """
-    def action(self, event):
+    @staticmethod
+    def action(event):
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
