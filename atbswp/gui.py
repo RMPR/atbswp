@@ -90,7 +90,6 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))
         self.SetIcon(self.icon)
         self.taskbar = TaskBarIcon(self)
-        self.taskbar.CreatePopupMenu = self.settings_popup
         self.taskbar.SetIcon(self.icon, "atbswp")
 
         self.file_open_button = wx.BitmapButton(self,
