@@ -32,9 +32,9 @@ import wx.adv
 
 APP_TEXT = ["Load Capture", "Save", "Start/Stop Capture", "Play",
             "Compile to executable", "Preferences", "Help"]
-SETTINGS_TEXT = ["Play &Speed: Fast", "&Continuous Playback", 
-                 "&Repeat Playback Loops", "Recording &Hotkey", 
-                 "&Playback Hotkey", "Always on &Top", "&About", 
+SETTINGS_TEXT = ["Play &Speed: Fast", "&Continuous Playback",
+                 "Set &Repeat Count", "Recording &Hotkey",
+                 "&Playback Hotkey", "Always on &Top", "&About",
                  "&Exit"]
 
 
@@ -154,6 +154,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         pbc = control.PlayCtrl()
         self.Bind(wx.EVT_TOGGLEBUTTON, pbc.action, self.play_button)
 
+        # compile_button_ctrl
+        self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile, self.compile_button)
+
         # help_button_ctrl
         hbc = control.HelpCtrl()
         self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
@@ -210,7 +213,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
     def on_close_dialog(self, event):
         dialog = wx.MessageDialog(self,
                                   message="Are you sure you want to quit?",
-                                  caption="Caption",
+                                  caption="Confirm Exit",
                                   style=wx.YES_NO,
                                   pos=wx.DefaultPosition)
         response = dialog.ShowModal()

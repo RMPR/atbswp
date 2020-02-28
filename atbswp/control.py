@@ -30,9 +30,11 @@ import pyautogui
 from pynput import keyboard
 from pynput import mouse
 
-
 import wx
 import wx.adv
+
+from PyInstaller.__main__ import run
+
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%w"))
@@ -462,6 +464,48 @@ class PlayCtrl:
         else:
             play_thread._stop()  # Can be deprecated
             toggle_button.Value = False
+
+class CompileCtrl:
+    @staticmethod
+    def compile(event):
+        path = Path(__file__).parent.absolute()
+        if TMP_PATH is None or not os.path.isfile(TMP_PATH):
+            wx.LogError("No capture loaded")
+            return
+        executable_path = Path(TMP_PATH).parent.absolute()
+        os.chdir(executable_path)
+        try:
+            os.mkdir("dist")
+        except FileExistsError:
+            shutil.rmtree("dist", ignore_errors=True)
+        try:
+            os.mkdir("build")
+        except FileExistsError:
+            shutil.rmtree("build", ignore_errors=True)
+        dist_dir = os.path.join(executable_path, "dist")
+        build_dir = os.path.join(executable_path, "build")
+        run([TMP_PATH, '--onefile', '--noconfirm', '--specpath='+str(executable_path),
+            '--distpath='+dist_dir, '--workpath='+build_dir, '--icon='])
+        if platform.system() == "Darwin":
+            default_file = "capture.app"
+        elif platform.system() == "Windows":
+            default_file = "capture.exe"
+        else:
+            default_file = "capture"
+        executable_name = os.listdir(dist_dir)
+        executable_path = os.path.join(executable_path, "dist", executable_name[0])
+        with wx.FileDialog(parent=event.GetEventObject().Parent, message="Save capture executable",
+                           defaultDir=os.path.expanduser("~"), defaultFile=default_file, wildcard="*",
+                           style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return     # the user changed their mind
+            pathname = fileDialog.GetPath()
+            try:
+                shutil.copy(executable_path, pathname)
+            except IOError:
+                wx.LogError(f"Cannot save current data in file {pathname}.")
+
 
 
 class SettingsCtrl:

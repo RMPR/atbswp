@@ -1,4 +1,9 @@
 Actually it's not really formal, but if you spot any issue, you can always submit a PR :)
+# Optimizations
+To enable optimizations, you may want to install `upx` which is easily done on Fedora:
+```
+sudo dnf install -y upx
+```
 # Known issues
 
 ## Wxpython and Linux
