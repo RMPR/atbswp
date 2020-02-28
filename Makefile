@@ -45,7 +45,7 @@ clean-build: $(VENV)/activate ## Clean previous build
 
 build: export PYTHONOPTIMIZE = 1
 build: $(VENV)/activate ## Build the project for the current platform
-> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png $(WORKDIR)/atbswp.py && \
+> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png --hiddenimport=PyInstaller $(WORKDIR)/atbswp.py && \
 > cp -r $(WORKDIR)/img dist/atbswp/
 
 run: $(VENV)/activate  ## Launch the project

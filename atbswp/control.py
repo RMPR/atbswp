@@ -485,7 +485,7 @@ class CompileCtrl:
         dist_dir = os.path.join(executable_path, "dist")
         build_dir = os.path.join(executable_path, "build")
         run([TMP_PATH, '--onefile', '--noconfirm', '--specpath='+str(executable_path),
-            '--distpath='+dist_dir, '--workpath='+build_dir, '--icon='])
+            '--distpath='+dist_dir, '--workpath='+build_dir, '--icon='+os.path.join(path, "img", "icon.png")])
         if platform.system() == "Darwin":
             default_file = "capture.app"
         elif platform.system() == "Windows":
