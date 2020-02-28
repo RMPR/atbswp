@@ -36,7 +36,6 @@ test: $(VENV)/activate  ## Run all tests
 clean-pyc: $(VENV)  ## Clean all the pyc files
 > find . -name '*.pyc' -exec rm --force {} +
 > find . -name '*.pyo' -exec rm --force {} +
-> name '*~' -exec rm --force  {}
 
 clean-build: $(VENV)/activate ## Clean previous build
 > @rm --force --recursive build/
@@ -44,8 +43,9 @@ clean-build: $(VENV)/activate ## Clean previous build
 > @rm --force --recursive *.egg-info
 > make build
 
+build: export PYTHONOPTIMIZE = 1
 build: $(VENV)/activate ## Build the project for the current platform
-> $(PYINSTALLER) --icon=$(WORDIR)/img/icon.png $(WORKDIR)/atbswp.py && \
+> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png $(WORKDIR)/atbswp.py && \
 > cp -r $(WORKDIR)/img dist/atbswp/
 
 run: $(VENV)/activate  ## Launch the project
