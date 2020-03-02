@@ -41,13 +41,16 @@ clean-build: $(VENV)/activate ## Clean previous build
 > @rm --force --recursive build/
 > @rm --force --recursive dist/
 > @rm --force --recursive *.egg-info
-> make build
 
 build: export PYTHONOPTIMIZE = 1
 build: $(VENV)/activate ## Build the project for the current platform
-> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png \
-	--hiddenimport=PyInstaller --add-data $(WORKDIR)/img:img \
-	--clean $(WORKDIR)/atbswp.py 
+> @sed 's/DEV = True/DEV = False/' $(WORKDIR)/control.py -i
+> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png --clean --windowed \
+	--add-data $(WORKDIR)/img:img \
+	--add-data $(VENV)/pyinstaller:. \
+	--add-data $(VENV_SITE_PACKAGES)/PyInstaller:./PyInstaller \
+	$(WORKDIR)/atbswp.py
+> @sed 's/DEV = False/DEV = True/' $(WORKDIR)/control.py -i
 
 run: $(VENV)/activate  ## Launch the project
 > $(PYTHON) $(WORKDIR)/atbswp.py
