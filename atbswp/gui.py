@@ -22,6 +22,7 @@ create the GUI and handle non functionnal event
 """
 
 import os
+import sys
 from pathlib import Path
 
 import control
@@ -84,7 +85,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         """
         Build the interface
         """
-        path = Path(__file__).parent.absolute()
+        if getattr(sys, 'frozen', False):
+            path = sys._MEIPASS
+        else:
+            path = Path(__file__).parent.absolute()
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
         self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))

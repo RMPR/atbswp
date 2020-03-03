@@ -33,7 +33,7 @@ from pynput import mouse
 import wx
 import wx.adv
 
-from PyInstaller.__main__ import run
+#from PyInstaller.__main__ import run
 
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
@@ -469,6 +469,7 @@ class CompileCtrl:
     @staticmethod
     def compile(event):
         path = Path(__file__).parent.absolute()
+        """
         if TMP_PATH is None or not os.path.isfile(TMP_PATH):
             wx.LogError("No capture loaded")
             return
@@ -505,6 +506,7 @@ class CompileCtrl:
                 shutil.copy(executable_path, pathname)
             except IOError:
                 wx.LogError(f"Cannot save current data in file {pathname}.")
+        """
 
 
 
