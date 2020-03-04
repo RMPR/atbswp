@@ -1,5 +1,6 @@
 # Atbswp
-Literally Automate the boring stuff with python, allows the user to record his mouse and keyboard 
+![Logo](./atbswp/img/icon.png)
+Literally Automate the boring stuff with Python, allows the user to record his mouse and keyboard 
 actions and reproduce them identically as many times as he wants.
 
 # Install instructions

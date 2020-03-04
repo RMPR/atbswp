@@ -35,10 +35,7 @@ from pynput import mouse
 import wx
 import wx.adv
 
-DEV = True
-
-if DEV:
-    from PyInstaller.__main__ import run
+from PyInstaller.__main__ import run
 
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
@@ -474,6 +471,7 @@ class PlayCtrl:
 class CompileCtrl:
     @staticmethod
     def compile(event):
+        """
         path = Path(__file__).parent.absolute()
         if TMP_PATH is None or not os.path.isfile(TMP_PATH):
             wx.LogError("No capture loaded")
@@ -493,27 +491,7 @@ class CompileCtrl:
         args = [TMP_PATH, '--onefile', '--noconfirm', '--specpath='+str(executable_path),
                 '--windowed', '--distpath='+dist_dir, '--workpath='+build_dir,
                 '--icon='+os.path.join(path, "img", "icon.png")]
-        if DEV:
-            run(args)
-        else:
-            frozen_folder = os.path.join(Path(sys.executable).parent, "PyInstaller")
-            main_location = os.path.join(frozen_folder, '__main__.py')
-            content = open(main_location).readlines()
-            content.pop()
-            sys.path.insert(0, frozen_folder)
-            relative_import = (
-                                f"__name__ = '.'.join(__name__.split('/'))\n"
-                                f"__package__ = '.'.join('.'.join(__name__.split('/')).split('.')[:-1])\n"
-                              )
-            content.insert(0, relative_import)
-            content.append(f"    sys.exit(run({args}))")
-            with open(main_location, 'w') as pyinstaller_main:
-                    pyinstaller_main.writelines(content)
-            runpy.run_path(path_name=main_location)
-            import subprocess
-            print(args)
-            print(main_location)
-            subprocess.run(args.insert(0, main_location))
+        run(args)
 
         if platform.system() == "Darwin":
             default_file = "capture.app"
@@ -534,6 +512,7 @@ class CompileCtrl:
                 shutil.copy(executable_path, pathname)
             except IOError:
                 wx.LogError(f"Cannot save current data in file {pathname}.")
+        """
 
 
 

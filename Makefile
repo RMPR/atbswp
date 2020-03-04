@@ -47,7 +47,6 @@ build: $(VENV)/activate ## Build the project for the current platform
 > @sed 's/DEV = True/DEV = False/' $(WORKDIR)/control.py -i
 > $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png --clean --windowed \
 	--add-data $(WORKDIR)/img:img \
-	--add-data $(VENV)/pyinstaller:. \
 	--add-data $(VENV_SITE_PACKAGES)/PyInstaller:./PyInstaller \
 	$(WORKDIR)/atbswp.py
 > @sed 's/DEV = False/DEV = True/' $(WORKDIR)/control.py -i
