@@ -42,8 +42,9 @@ HEADER = (
             f"#!/bin/env python3\n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
             f"# on {date.today().strftime('%a %b %Y ')}\n"
-            f"import pyautogui \n"
-            f"import time \n"
+            f"import pyautogui\n"
+            f"import time\n"
+            f"pyautogui.FAILSAFE = False\n"
         )
 
 
@@ -106,7 +107,7 @@ class RecordCtrl:
 
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
-        self.mouse_sensibility = 20
+        self.mouse_sensibility = 21
         self.path = Path(__file__).parent.absolute()
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
