@@ -15,10 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import os
 import platform
-import runpy
+import py_compile
 import shutil
 import sys
 import tempfile
@@ -34,8 +33,6 @@ from pynput import mouse
 
 import wx
 import wx.adv
-
-from PyInstaller.__main__ import run
 
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
@@ -75,6 +72,7 @@ class FileChooserCtrl:
         dlg = wx.FileDialog(self.parent,
                             message=title,
                             defaultDir="~",
+                            defaultFile="capture.py",
                             style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             self._capture = self.load_content(dlg.GetPath())
@@ -425,6 +423,11 @@ class RecordCtrl:
         else:
             self.recording = False
             with open(TMP_PATH, 'w') as f:
+                # Remove the recording trigger event
+                self._capture.pop()
+                # If it's the mouse remove the previous also
+                if "mouseDown" in self._capture[-1]:
+                    self._capture.pop()
                 f.seek(0)
                 f.write("\n".join(self._capture))
                 f.truncate()
@@ -472,35 +475,18 @@ class CompileCtrl:
     @staticmethod
     def compile(event):
         """
-        path = Path(__file__).parent.absolute()
-        if TMP_PATH is None or not os.path.isfile(TMP_PATH):
+        Return a compiled version of the capture currently loaded
+        For now it only returns a bytecode file.
+        #TODO: Return a proper executable for the platform currently
+        used **Without breaking the current workflow** which works both
+        in development mode and in production
+        """
+        try:
+            bytecode_path = py_compile.compile(TMP_PATH)
+        except:
             wx.LogError("No capture loaded")
             return
-        executable_path = Path(TMP_PATH).parent.absolute()
-        os.chdir(executable_path)
-        try:
-            os.mkdir("dist")
-        except FileExistsError:
-            shutil.rmtree("dist", ignore_errors=True)
-        try:
-            os.mkdir("build")
-        except FileExistsError:
-            shutil.rmtree("build", ignore_errors=True)
-        dist_dir = os.path.join(executable_path, "dist")
-        build_dir = os.path.join(executable_path, "build")
-        args = [TMP_PATH, '--onefile', '--noconfirm', '--specpath='+str(executable_path),
-                '--windowed', '--distpath='+dist_dir, '--workpath='+build_dir,
-                '--icon='+os.path.join(path, "img", "icon.png")]
-        run(args)
-
-        if platform.system() == "Darwin":
-            default_file = "capture.app"
-        elif platform.system() == "Windows":
-            default_file = "capture.exe"
-        else:
-            default_file = "capture"
-        executable_name = os.listdir(dist_dir)
-        executable_path = os.path.join(executable_path, "dist", executable_name[0])
+        default_file = "capture.pyc"
         with wx.FileDialog(parent=event.GetEventObject().Parent, message="Save capture executable",
                            defaultDir=os.path.expanduser("~"), defaultFile=default_file, wildcard="*",
                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
@@ -509,11 +495,9 @@ class CompileCtrl:
                 return     # the user changed their mind
             pathname = fileDialog.GetPath()
             try:
-                shutil.copy(executable_path, pathname)
+                shutil.copy(bytecode_path, pathname)
             except IOError:
                 wx.LogError(f"Cannot save current data in file {pathname}.")
-        """
-
 
 
 class SettingsCtrl:
