@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 import control
+import utils
 
 import wx
 import wx.adv
@@ -56,9 +57,12 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   control.SettingsCtrl.playback_speed,
                   ps)
         ps.Enable(False)
+        cp = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[1])
+        status = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
+        cp.Check(status)
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.continuous_playback,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[1]))
+                  cp)
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.repeat_count,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[2]))
@@ -75,7 +79,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[5]))
         self.Bind(wx.EVT_MENU,
                   self.on_about,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[6]))
+                  menu.Append(wx.ID_ABOUT, SETTINGS_TEXT[6]))
         self.Bind(wx.EVT_MENU,
                   self.on_close_dialog,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[7]))
@@ -89,7 +93,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             path = sys._MEIPASS
         else:
             path = Path(__file__).parent.absolute()
-        kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
+        on_top = wx.DEFAULT_DIALOG_STYLE
+        on_top = on_top if utils.CONFIG.getboolean('DEFAULT', 'Always On Top') \
+                else on_top | wx.STAY_ON_TOP
+        kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
         self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))
         self.SetIcon(self.icon)
@@ -211,6 +218,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             event.Skip()
 
     def on_exit_app(self, event):
+        utils.save_config()
         self.Destroy()
         self.taskbar.Destroy()
 
@@ -244,4 +252,5 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):
         self.parent = parent
         super(TaskBarIcon, self).__init__()
+
 

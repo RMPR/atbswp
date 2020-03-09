@@ -22,7 +22,7 @@ import os
 import platform
 
 
-config = configparser.ConfigParser()
+CONFIG = configparser.ConfigParser()
 
 
 # Check the location of the configuration file, default to the home directory
@@ -39,15 +39,15 @@ config_location = os.path.join(config_location, filename)
 
 def save_config():
     with open(config_location, "w") as config_file:
-        config.write(config_file)
+        CONFIG.write(config_file)
 
 try:
     with open(config_location) as config_file:
-        config.read(config_location)
+        CONFIG.read(config_location)
 except OSError:
-    config['DEFAULT'] = {'Play Speed: Fast': False,
+    CONFIG['DEFAULT'] = {'Fast Play Speed': False,
                          'Continuous Playback': False,
                          'Repeat Count': 1,
                          'Recording Hotkey': 'F9',
                          'Playback Hotkey': 'F10',
-                         'Always On Top': False}
+                         'Always On Top': True}

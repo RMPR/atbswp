@@ -26,6 +26,8 @@ from datetime import date
 from pathlib import Path
 from threading import Thread
 
+import utils
+
 import pyautogui
 
 from pynput import keyboard
@@ -40,7 +42,7 @@ TMP_PATH = os.path.join(tempfile.gettempdir(),
 HEADER = (
             f"#!/bin/env python3\n"
             f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-            f"# on {date.today().strftime('%a %b %Y ')}\n"
+            f"# on {date.today().strftime('%d %b %Y ')}\n"
             f"import pyautogui\n"
             f"import time\n"
             f"pyautogui.FAILSAFE = False\n"
@@ -446,12 +448,17 @@ class PlayCtrl:
         pass
 
     def play(self, capture, toggle_button):
+        toggle_button.Value = True
         exec(capture)
         toggle_button.Value = False
 
     def action(self, event):
-        play_thread = Thread()
+        """
+         haReplay a count number of time.
+        """
         toggle_button = event.GetEventObject()
+        count = int(utils.CONFIG['DEFAULT']['Repeat Count'])
+        infinite = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
@@ -463,13 +470,25 @@ class PlayCtrl:
                 wx.LogError("Empty capture")
                 toggle_button.Value = False
                 return
-            play_thread.daemon = True
-            play_thread = Thread(target=self.play,
-                                 args=(capture, toggle_button,))
-            play_thread.start()
+            if count == 1:
+                    play_thread = Thread()
+                    play_thread.daemon = True
+                    play_thread = Thread(target=self.play,
+                                         args=(capture, toggle_button,))
+                    play_thread.start()
+            else:
+                i = 1
+                while i <= count or infinite:
+                    play_thread = Thread()
+                    play_thread = Thread(target=self.play,
+                                         args=(capture, toggle_button,))
+                    play_thread.start()
+                    play_thread.join()
+                    i += 1
         else:
             play_thread._stop()  # Can be deprecated
             toggle_button.Value = False
+
 
 class CompileCtrl:
     @staticmethod
@@ -511,23 +530,32 @@ class SettingsCtrl:
 
     @staticmethod
     def continuous_playback(event):
-        print("Continuous Playback")
+        current_value = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
+        utils.CONFIG['DEFAULT']['Continuous Playback'] = str(not current_value)
 
     @staticmethod
     def repeat_count(event):
-        print("Repeat Count")
+        current_value = int(utils.CONFIG['DEFAULT']['Repeat Count'])
+        dialog = SliderDialog(event.GetEventObject().Parent, title="Choose a repeat count", size=(500, 50), default_value=current_value)
+        dialog.ShowModal()
+        new_value = dialog.value
+        dialog.Destroy()
+        utils.CONFIG['DEFAULT']['Repeat Count'] = str(new_value)
 
     @staticmethod
     def recording_hotkey(event):
-        print("Recording hotkey")
+        current_value = utils.CONFIG['DEFAULT']['Continuous Playback']
+        utils.CONFIG['DEFAULT']['Recording Hotkey'] = not current_value
 
     @staticmethod
     def playback_hotkey(event):
-        print("Recording hotkey")
+        current_value = utils.CONFIG['DEFAULT']['Continuous Playback']
+        utils.CONFIG['DEFAULT']['Continuous Playback'] = not current_value
 
     @staticmethod
     def always_on_top(event):
-        print("Always on top")
+        current_value = utils.CONFIG['DEFAULT']['Always On Top']
+        utils.CONFIG['DEFAULT']['Always On Top'] = not current_value
 
 
 class HelpCtrl:
@@ -538,3 +566,42 @@ class HelpCtrl:
     def action(event):
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
+
+
+class SliderDialog(wx.Dialog):
+    """
+    Wrap a slider in a dialog and get the value
+    """
+
+    def __init__(self, *args, **kwargs):
+        self._current_value = kwargs.pop("default_value", 1)
+        super(SliderDialog, self).__init__(*args, **kwargs)
+        self._value = 1
+        self.min_value = 1
+        self.max_value = 999
+        self.init_ui()
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def init_ui(self):
+        pnl = wx.Panel(self)
+        sizer = wx.BoxSizer(orient=wx.HORIZONTAL)
+        self.slider = wx.Slider(parent=pnl, id=wx.ID_ANY, value=self._current_value,
+                           minValue=self.min_value, maxValue=self.max_value,
+                           name="Choose a number", size=self.GetSize(),
+                           style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
+        sizer.Add(self.slider)
+        pnl.SetSizer(sizer)
+        sizer.Fit(self)
+
+    def on_close(self, event):
+        self._value = self.slider.Value
+        event.Skip()
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+
