@@ -34,7 +34,7 @@ import wx.adv
 
 APP_TEXT = ["Load Capture", "Save", "Start/Stop Capture", "Play",
             "Compile to executable", "Preferences", "Help"]
-SETTINGS_TEXT = ["Play &Speed: Fast", "&Continuous Playback",
+SETTINGS_TEXT = ["Play &Speed: Fast", "&Infinite Playback",
                  "Set &Repeat Count", "Recording &Hotkey",
                  "&Playback Hotkey", "Always on &Top", "&About",
                  "&Exit"]
@@ -52,34 +52,53 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     def settings_popup(self):
         menu = wx.Menu()
+        # Replay fast
         ps = menu.Append(wx.ID_ANY, SETTINGS_TEXT[0])
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.playback_speed,
                   ps)
         ps.Enable(False)
+
+        #  Infinite Playback
         cp = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[1])
-        status = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
+        status = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         cp.Check(status)
         self.Bind(wx.EVT_MENU,
-                  control.SettingsCtrl.continuous_playback,
+                  control.SettingsCtrl.infinite_playback,
                   cp)
+
+        # Repeat count
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.repeat_count,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[2]))
         menu.AppendSeparator()
+
+        # Recording hotkey
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.recording_hotkey,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[3]))
+
+        # Playback hotkey
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.playback_hotkey,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[4]))
         menu.AppendSeparator()
+
+        # Always on top
+        aot = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[5])
+        status = utils.CONFIG.getboolean('DEFAULT', 'Always On Top')
+        aot.Check(status)
+        sc = control.SettingsCtrl(self)
         self.Bind(wx.EVT_MENU,
-                  control.SettingsCtrl.always_on_top,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[5]))
+                  sc.always_on_top,
+                  aot)
+
+        # ABout
         self.Bind(wx.EVT_MENU,
                   self.on_about,
                   menu.Append(wx.ID_ABOUT, SETTINGS_TEXT[6]))
+
+        # Exit
         self.Bind(wx.EVT_MENU,
                   self.on_close_dialog,
                   menu.Append(wx.ID_ANY, SETTINGS_TEXT[7]))
@@ -94,7 +113,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         else:
             path = Path(__file__).parent.absolute()
         on_top = wx.DEFAULT_DIALOG_STYLE
-        on_top = on_top if utils.CONFIG.getboolean('DEFAULT', 'Always On Top') \
+        on_top = on_top if not utils.CONFIG.getboolean('DEFAULT', 'Always On Top') \
                 else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
@@ -210,10 +229,14 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Layout()
 
     def on_key_press(self, event):
-        keycode = event.GetKeycode()
+        keycode = event.GetUnicodeKey()
 
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action()
+        elif keycode == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
+            print("Recording")
+        elif keycode == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
+            print("Playing")
         else:
             event.Skip()
 

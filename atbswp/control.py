@@ -454,11 +454,11 @@ class PlayCtrl:
 
     def action(self, event):
         """
-         haReplay a count number of time.
+         Replay a count number of time.
         """
         toggle_button = event.GetEventObject()
-        count = int(utils.CONFIG['DEFAULT']['Repeat Count'])
-        infinite = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
+        count = utils.CONFIG.getint('DEFAULT', 'Repeat Count')
+        infinite = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
@@ -470,7 +470,7 @@ class PlayCtrl:
                 wx.LogError("Empty capture")
                 toggle_button.Value = False
                 return
-            if count == 1:
+            if count == 1 and not infinite:
                     play_thread = Thread()
                     play_thread.daemon = True
                     play_thread = Thread(target=self.play,
@@ -523,20 +523,23 @@ class SettingsCtrl:
     """
     Control class for the settings
     """
+    def __init__(self, main_dialog):
+        self.main_dialog = main_dialog
+
     @staticmethod
     def playback_speed(event):
         # TODO: To implement
         pass
 
     @staticmethod
-    def continuous_playback(event):
-        current_value = utils.CONFIG.getboolean('DEFAULT', 'Continuous Playback')
-        utils.CONFIG['DEFAULT']['Continuous Playback'] = str(not current_value)
+    def infinite_playback(event):
+        current_value = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        utils.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
 
     @staticmethod
     def repeat_count(event):
-        current_value = int(utils.CONFIG['DEFAULT']['Repeat Count'])
-        dialog = SliderDialog(event.GetEventObject().Parent, title="Choose a repeat count", size=(500, 50), default_value=current_value)
+        current_value = utils.CONFIG.getint('DEFAULT', 'Repeat Count')
+        dialog = SliderDialog(None, title="Choose a repeat count", size=(500, 50), default_value=current_value)
         dialog.ShowModal()
         new_value = dialog.value
         dialog.Destroy()
@@ -544,18 +547,37 @@ class SettingsCtrl:
 
     @staticmethod
     def recording_hotkey(event):
-        current_value = utils.CONFIG['DEFAULT']['Continuous Playback']
-        utils.CONFIG['DEFAULT']['Recording Hotkey'] = not current_value
+        current_value = utils.CONFIG.getint('DEFAULT', 'Recording Hotkey')
+        dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
+                              default_value=current_value-339, min_value=2, max_value=12)
+        dialog.ShowModal()
+        new_value = dialog.value + 339
+        if new_value == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
+            dlg = wx.MessageDialog(None, "Recording hotkey should be different from Playback one", "Error", wx.OK|wx.ICON_ERROR)
+            dlg.ShowModal()
+            dlg.Destroy()
+        dialog.Destroy()
+        utils.CONFIG['DEFAULT']['Recording Hotkey'] = str(new_value)
 
     @staticmethod
     def playback_hotkey(event):
-        current_value = utils.CONFIG['DEFAULT']['Continuous Playback']
-        utils.CONFIG['DEFAULT']['Continuous Playback'] = not current_value
+        current_value = utils.CONFIG.getint('DEFAULT', 'Playback Hotkey')
+        dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
+                              default_value=current_value-339, min_value=2, max_value=12)
+        dialog.ShowModal()
+        new_value = dialog.value + 339
+        if new_value == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
+            dlg = wx.MessageDialog(None, "Playback hotkey should be different from Recording one", "Error", wx.OK|wx.ICON_ERROR)
+            dlg.ShowModal()
+            dlg.Destroy()
+        dialog.Destroy()
+        utils.CONFIG['DEFAULT']['Playback Hotkey'] = str(new_value)
 
-    @staticmethod
-    def always_on_top(event):
+    def always_on_top(self, event):
         current_value = utils.CONFIG['DEFAULT']['Always On Top']
-        utils.CONFIG['DEFAULT']['Always On Top'] = not current_value
+        style = self.main_dialog.GetWindowStyle()
+        self.main_dialog.SetWindowStyle(style ^ wx.STAY_ON_TOP)
+        utils.CONFIG['DEFAULT']['Always On Top'] = str(not current_value)
 
 
 class HelpCtrl:
@@ -575,10 +597,10 @@ class SliderDialog(wx.Dialog):
 
     def __init__(self, *args, **kwargs):
         self._current_value = kwargs.pop("default_value", 1)
+        self.min_value = kwargs.pop("min_value", 1)
+        self.max_value = kwargs.pop("max_value", 999)
         super(SliderDialog, self).__init__(*args, **kwargs)
         self._value = 1
-        self.min_value = 1
-        self.max_value = 999
         self.init_ui()
         self.Bind(wx.EVT_CLOSE, self.on_close)
 

@@ -46,8 +46,8 @@ try:
         CONFIG.read(config_location)
 except OSError:
     CONFIG['DEFAULT'] = {'Fast Play Speed': False,
-                         'Continuous Playback': False,
+                         'Infinite Playback': False,
                          'Repeat Count': 1,
-                         'Recording Hotkey': 'F9',
-                         'Playback Hotkey': 'F10',
+                         'Recording Hotkey': 348,
+                         'Playback Hotkey': 349,
                          'Always On Top': True}
