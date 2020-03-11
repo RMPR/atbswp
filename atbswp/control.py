@@ -402,10 +402,9 @@ class RecordCtrl:
             self.write_keyboard_action(move='keyUp', key='print_screen')
         elif key == keyboard.Key.scroll_lock:
             self.write_keyboard_action(move='keyUp', key='scroll_lock')
-        elif key == keyboard._xorg.KeyCode(269025067): # Fn Key
-            pass
         else:
-            self.write_keyboard_action(move='keyUp', key=key)
+            if len(str(key)) <= 3:
+                self.write_keyboard_action(move='keyUp', key=key)
 
     def action(self, event):
         listener_mouse = mouse.Listener(
