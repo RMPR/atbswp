@@ -19,7 +19,6 @@ import os
 import platform
 import py_compile
 import shutil
-import sys
 import tempfile
 import time
 from datetime import date
