@@ -196,7 +196,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
 
-        self.Bind(wx.EVT_KEY_DOWN, self.on_key_press)
+        self.Bind(wx.EVT_KEY_DOWN, self.on_key_press, self)
 
     def _toggle_after_execution(self, message=""):
         btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
@@ -229,6 +229,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Layout()
 
     def on_key_press(self, event):
+        print("We reach here")
         keycode = event.GetUnicodeKey()
 
         if keycode == wx.WXK_F1:
