@@ -117,6 +117,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                 else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
+        self.panel = wx.Panel(self)
         self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))
         self.SetIcon(self.icon)
         self.taskbar = TaskBarIcon(self)
@@ -188,22 +189,14 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile, self.compile_button)
 
         # help_button_ctrl
-        hbc = control.HelpCtrl()
-        self.Bind(wx.EVT_BUTTON, hbc.action, self.help_button)
+        self.Bind(wx.EVT_BUTTON, control.HelpCtrl.action, self.help_button)
 
         # settings_button_ctrl
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
 
         self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
 
-        self.Bind(wx.EVT_KEY_DOWN, self.on_key_press, self)
-
-    def _toggle_after_execution(self, message=""):
-        btnEvent = wx.CommandEvent(wx.wxEVT_BUTTON)
-        btnEvent.EventObject = self.file_open_button
-        btnEvent.Checked = True
-        print(self.ProcessEvent(btnEvent))
-        self.play_button.Update()
+        self.panel.Bind(wx.EVT_KEY_UP, self.on_key_press)
 
     def __set_properties(self):
         self.file_open_button.SetSize(self.file_open_button.GetBestSize())
@@ -216,6 +209,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     def __do_layout(self):
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        main_sizer.Add(self.panel)
         main_sizer.Add(self.file_open_button, 0, 0, 0)
         main_sizer.Add(self.save_button, 0, 0, 0)
         main_sizer.Add(self.record_button, 0, 0, 0)
@@ -229,15 +223,23 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Layout()
 
     def on_key_press(self, event):
-        print("We reach here")
-        keycode = event.GetUnicodeKey()
-
+        keycode = event.GetKeyCode()
         if keycode == wx.WXK_F1:
-            control.HelpCtrl.action()
+            control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
         elif keycode == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
-            print("Recording")
+            if not self.record_button.Value:
+                btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+                btnEvent.EventObject = self.record_button#
+                self.record_button.Value = True
+                control.RecordCtrl().action(btnEvent)
+            else:
+                self.record_button.Value = False
         elif keycode == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
-            print("Playing")
+            if not self.play_button.Value:
+                self.play_button.Value = True
+                btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+                btnEvent.EventObject = self.play_button
+                control.PlayCtrl().action(btnEvent)
         else:
             event.Skip()
 
