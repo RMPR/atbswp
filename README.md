@@ -15,9 +15,9 @@ make run
 Debian
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
-sudo apt install python3-wxgtk4.0
-pip install -r requirements.txt
-python atbswp/atbswp.py
+sudo apt install git python3-dev python3-tk python3-setuptools python3-wheel python3-pip python3-wxgtk4.0
+python3 -m pip install -r requirements-dev.txt
+python3 atbswp/atbswp.py
 ```
 Windows
 ```shell
