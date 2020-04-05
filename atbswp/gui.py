@@ -178,8 +178,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_BUTTON, self.fsc.save_file, self.save_button)
 
         # record_button_ctrl
-        rbc = control.RecordCtrl()
-        self.Bind(wx.EVT_TOGGLEBUTTON, rbc.action, self.record_button)
+        self.rbc = control.RecordCtrl()
+        self.Bind(wx.EVT_TOGGLEBUTTON, self.rbc.action, self.record_button)
 
         # play_button_ctrl
         pbc = control.PlayCtrl()
@@ -224,6 +224,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     def on_key_press(self, event):
         keycode = event.GetKeyCode()
+        print(keycode)
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
         elif keycode == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
@@ -231,9 +232,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                 btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
                 btnEvent.EventObject = self.record_button#
                 self.record_button.Value = True
-                control.RecordCtrl().action(btnEvent)
+                self.rbc.action(btnEvent)
             else:
                 self.record_button.Value = False
+                self.rbc.action(btnEvent)
         elif keycode == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
             if not self.play_button.Value:
                 self.play_button.Value = True
