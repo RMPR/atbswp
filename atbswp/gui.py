@@ -224,13 +224,12 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     def on_key_press(self, event):
         keycode = event.GetKeyCode()
-        print(keycode)
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
         elif keycode == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
+            btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+            btnEvent.EventObject = self.record_button
             if not self.record_button.Value:
-                btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
-                btnEvent.EventObject = self.record_button#
                 self.record_button.Value = True
                 self.rbc.action(btnEvent)
             else:
