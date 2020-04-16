@@ -25,7 +25,7 @@ from datetime import date
 from pathlib import Path
 from threading import Thread
 
-import utils
+import settings
 
 import pyautogui
 
@@ -455,8 +455,8 @@ class PlayCtrl:
          Replay a count number of time.
         """
         toggle_button = event.GetEventObject()
-        count = utils.CONFIG.getint('DEFAULT', 'Repeat Count')
-        infinite = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+        infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
@@ -531,51 +531,51 @@ class SettingsCtrl:
 
     @staticmethod
     def infinite_playback(event):
-        current_value = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
-        utils.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
+        current_value = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        settings.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
 
     @staticmethod
     def repeat_count(event):
-        current_value = utils.CONFIG.getint('DEFAULT', 'Repeat Count')
+        current_value = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         dialog = SliderDialog(None, title="Choose a repeat count", size=(500, 50), default_value=current_value)
         dialog.ShowModal()
         new_value = dialog.value
         dialog.Destroy()
-        utils.CONFIG['DEFAULT']['Repeat Count'] = str(new_value)
+        settings.CONFIG['DEFAULT']['Repeat Count'] = str(new_value)
 
     @staticmethod
     def recording_hotkey(event):
-        current_value = utils.CONFIG.getint('DEFAULT', 'Recording Hotkey')
+        current_value = settings.CONFIG.getint('DEFAULT', 'Recording Hotkey')
         dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
                               default_value=current_value-339, min_value=2, max_value=12)
         dialog.ShowModal()
         new_value = dialog.value + 339
-        if new_value == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
+        if new_value == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
             dlg = wx.MessageDialog(None, "Recording hotkey should be different from Playback one", "Error", wx.OK|wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
-        utils.CONFIG['DEFAULT']['Recording Hotkey'] = str(new_value)
+        settings.CONFIG['DEFAULT']['Recording Hotkey'] = str(new_value)
 
     @staticmethod
     def playback_hotkey(event):
-        current_value = utils.CONFIG.getint('DEFAULT', 'Playback Hotkey')
+        current_value = settings.CONFIG.getint('DEFAULT', 'Playback Hotkey')
         dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
                               default_value=current_value-339, min_value=2, max_value=12)
         dialog.ShowModal()
         new_value = dialog.value + 339
-        if new_value == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
+        if new_value == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
             dlg = wx.MessageDialog(None, "Playback hotkey should be different from Recording one", "Error", wx.OK|wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
-        utils.CONFIG['DEFAULT']['Playback Hotkey'] = str(new_value)
+        settings.CONFIG['DEFAULT']['Playback Hotkey'] = str(new_value)
 
     def always_on_top(self, event):
-        current_value = utils.CONFIG['DEFAULT']['Always On Top']
+        current_value = settings.CONFIG['DEFAULT']['Always On Top']
         style = self.main_dialog.GetWindowStyle()
         self.main_dialog.SetWindowStyle(style ^ wx.STAY_ON_TOP)
-        utils.CONFIG['DEFAULT']['Always On Top'] = str(not current_value)
+        settings.CONFIG['DEFAULT']['Always On Top'] = str(not current_value)
 
 
 class HelpCtrl:

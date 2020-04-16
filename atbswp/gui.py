@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 import control
-import utils
+import settings
 
 import wx
 import wx.adv
@@ -61,7 +61,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         #  Infinite Playback
         cp = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[1])
-        status = utils.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        status = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         cp.Check(status)
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.infinite_playback,
@@ -86,7 +86,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         # Always on top
         aot = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[5])
-        status = utils.CONFIG.getboolean('DEFAULT', 'Always On Top')
+        status = settings.CONFIG.getboolean('DEFAULT', 'Always On Top')
         aot.Check(status)
         sc = control.SettingsCtrl(self)
         self.Bind(wx.EVT_MENU,
@@ -113,7 +113,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         else:
             path = Path(__file__).parent.absolute()
         on_top = wx.DEFAULT_DIALOG_STYLE
-        on_top = on_top if not utils.CONFIG.getboolean('DEFAULT', 'Always On Top') \
+        on_top = on_top if not settings.CONFIG.getboolean('DEFAULT', 'Always On Top') \
                 else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
@@ -226,7 +226,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         keycode = event.GetKeyCode()
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
-        elif keycode == utils.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
+        elif keycode == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
             btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
             btnEvent.EventObject = self.record_button
             if not self.record_button.Value:
@@ -235,7 +235,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             else:
                 self.record_button.Value = False
                 self.rbc.action(btnEvent)
-        elif keycode == utils.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
+        elif keycode == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
             if not self.play_button.Value:
                 self.play_button.Value = True
                 btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
@@ -245,7 +245,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             event.Skip()
 
     def on_exit_app(self, event):
-        utils.save_config()
+        settings.save_config()
         self.Destroy()
         self.taskbar.Destroy()
 
