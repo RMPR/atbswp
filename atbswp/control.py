@@ -469,22 +469,22 @@ class PlayCtrl:
                 toggle_button.Value = False
                 return
             if count == 1 and not infinite:
-                    play_thread = Thread()
-                    play_thread.daemon = True
-                    play_thread = Thread(target=self.play,
+                    self.play_thread = Thread()
+                    self.play_thread.daemon = True
+                    self.play_thread = Thread(target=self.play,
                                          args=(capture, toggle_button,))
-                    play_thread.start()
+                    self.play_thread.start()
             else:
                 i = 1
                 while i <= count or infinite:
-                    play_thread = Thread()
-                    play_thread = Thread(target=self.play,
+                    self.play_thread = Thread()
+                    self.play_thread = Thread(target=self.play,
                                          args=(capture, toggle_button,))
-                    play_thread.start()
-                    play_thread.join()
+                    self.play_thread.start()
+                    self.play_thread.join()
                     i += 1
         else:
-            play_thread._stop()  # Can be deprecated
+            self.play_thread._stop()  # Can be deprecated
             toggle_button.Value = False
 
 
