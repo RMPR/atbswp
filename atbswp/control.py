@@ -109,7 +109,10 @@ class RecordCtrl:
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
         self.mouse_sensibility = 21
-        self.path = Path(__file__).parent.absolute()
+        if getattr(sys, 'frozen', False):
+            self.path = sys._MEIPASS
+        else:
+            self.path = Path(__file__).parent.absolute()
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
@@ -484,8 +487,12 @@ class PlayCtrl:
                     self.play_thread.join()
                     i += 1
         else:
-            self.play_thread._stop()  # Can be deprecated
-            toggle_button.Value = False
+            if getattr(sys, 'frozen', False):
+                path = os.path.join(Path(__file).parent.absolute(), 'atbswp')
+            else:
+                path = os.path.join(Path(__file__).parent.absolute(), 'atbswp.py')
+            settings.save_config()
+            os.execl(path)
 
 
 class CompileCtrl:
