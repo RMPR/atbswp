@@ -23,7 +23,7 @@ import tempfile
 import time
 from datetime import date
 from pathlib import Path
-from threading import Thread
+from multiprocessing import Process
 
 import settings
 
@@ -469,23 +469,26 @@ class PlayCtrl:
                 toggle_button.Value = False
                 return
             if count == 1 and not infinite:
-                    self.play_thread = Thread()
-                    self.play_thread.daemon = True
-                    self.play_thread = Thread(target=self.play,
+                    self.play_process = Process()
+                    self.play_process.daemon = True
+                    self.play_process = Process(target=self.play,
                                          args=(capture, toggle_button,))
-                    self.play_thread.start()
+                    self.play_process.start()
             else:
                 i = 1
                 while i <= count or infinite:
-                    self.play_thread = Thread()
-                    self.play_thread = Thread(target=self.play,
+                    self.play_process = Process()
+                    self.play_process = Process(target=self.play,
                                          args=(capture, toggle_button,))
-                    self.play_thread.start()
-                    self.play_thread.join()
+                    self.play_process.start()
+                    self.play_process.join()
+                    self.play_process = None
                     i += 1
         else:
-            self.play_thread._stop()  # Can be deprecated
-            toggle_button.Value = False
+            if self.play_process.is_alive():
+                self.play_process.terminate()  # Can be deprecated
+                self.play_process = Process()
+            #toggle_button.Value = False
 
 
 class CompileCtrl:
