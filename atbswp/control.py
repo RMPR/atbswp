@@ -148,7 +148,11 @@ class RecordCtrl:
         if timeout > 0:
             self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
-        self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
+        try:
+            self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
+        except NotImplementedError:
+            x, y = pyautogui.position()
+            self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
 
     def on_click(self, x, y, button, pressed):
         if not self.recording:
