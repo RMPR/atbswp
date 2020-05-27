@@ -116,7 +116,7 @@ class RecordCtrl:
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         if move == "moveTo":
-            coordinates = [int(s) for s in parameters.split(", ") if s.isdigit()]
+            coordinates = [int(s) for s in parameters.split(", ")]
             if coordinates[0] - self._lastx < self.mouse_sensibility \
                and coordinates[1] - self._lasty < self.mouse_sensibility:
                 return
@@ -148,11 +148,7 @@ class RecordCtrl:
         if timeout > 0:
             self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
-        try:
-            self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
-        except NotImplementedError:
-            x, y = pyautogui.position()
-            self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
+        self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
 
     def on_click(self, x, y, button, pressed):
         if not self.recording:
