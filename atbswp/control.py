@@ -116,8 +116,15 @@ class RecordCtrl:
             self.path = Path(__file__).parent.absolute()
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
+        def isinteger(s):
+            try:
+                int(s)
+                return True
+            except:
+                return False
+
         if move == "moveTo":
-            coordinates = [int(s) for s in parameters.split(", ")]
+            coordinates = [int(s) for s in parameters.split(", ") if isinteger(s)]
             if coordinates[0] - self._lastx < self.mouse_sensibility \
                and coordinates[1] - self._lasty < self.mouse_sensibility:
                 return
