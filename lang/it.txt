@@ -1,0 +1,7 @@
+Carica un file di acquisizione
+Salva acquisizione
+Registra acquisizione 
+Riproduci acquisizione
+Compila exe (Windows)
+Preferenze
+Aiuto
