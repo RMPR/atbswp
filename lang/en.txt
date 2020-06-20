@@ -1,7 +1,0 @@
-Load a capture file
-Save capture
-Record capture
-Play capture
-Compile to exe (Windows)
-Preferences
-Help

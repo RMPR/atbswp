@@ -50,4 +50,5 @@ except OSError:
                          'Repeat Count': 1,
                          'Recording Hotkey': 348,
                          'Playback Hotkey': 349,
-                         'Always On Top': True}
+                         'Always On Top': True,
+                         'Language': en}

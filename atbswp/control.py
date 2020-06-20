@@ -20,6 +20,7 @@ import sys
 import platform
 import py_compile
 import shutil
+import sys
 import tempfile
 import time
 from datetime import date
@@ -592,6 +593,14 @@ class SettingsCtrl:
         self.main_dialog.SetWindowStyle(style ^ wx.STAY_ON_TOP)
         settings.CONFIG['DEFAULT']['Always On Top'] = str(not current_value)
 
+    def language(self, event):
+        menu = event.EventObject
+        item = menu.FindItemById(event.Id)
+        settings.CONFIG['DEFAULT']['Language'] = item.Name
+        dialog = wx.MessageDialog(None,
+                                  message="Restart the program to apply modifications",
+                                  pos=wx.DefaultPosition)
+        dialog.ShowModal()
 
 class HelpCtrl:
     """

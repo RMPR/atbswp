@@ -32,19 +32,17 @@ import wx
 import wx.adv
 
 
-APP_TEXT = ["Load Capture", "Save", "Start/Stop Capture", "Play",
-            "Compile to executable", "Preferences", "Help"]
-SETTINGS_TEXT = ["Play &Speed: Fast", "&Infinite Playback",
-                 "Set &Repeat Count", "Recording &Hotkey",
-                 "&Playback Hotkey", "Always on &Top", "&About",
-                 "&Exit"]
-
-
 class MainDialog(wx.Dialog, wx.MiniFrame):
     """
     Main windows of the app, it's a dialog to display_button the app correctly
     even with tiling WMs
     """
+
+    app_text = ["Load Capture", "Save", "Start/Stop Capture", "Play", "Compile to executable",
+                "Preferences", "Help"]
+    settings_text = ["Play &Speed: Fast", "&Infinite Playback", "Set &Repeat Count", "Recording &Hotkey", 
+                     "&Playback Hotkey", "Always on &Top", "&Language", "&About", "&Exit"]
+
     def on_settings_click(self, event):
         self.settings_popup()
         event.GetEventObject().PopupMenu(self.settings_popup())
@@ -53,14 +51,14 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
     def settings_popup(self):
         menu = wx.Menu()
         # Replay fast
-        ps = menu.Append(wx.ID_ANY, SETTINGS_TEXT[0])
+        ps = menu.Append(wx.ID_ANY, self.settings_text[0])
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.playback_speed,
                   ps)
         ps.Enable(False)
 
         #  Infinite Playback
-        cp = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[1])
+        cp = menu.AppendCheckItem(wx.ID_ANY, self.settings_text[1])
         status = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         cp.Check(status)
         self.Bind(wx.EVT_MENU,
@@ -70,22 +68,22 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         # Repeat count
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.repeat_count,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[2]))
+                  menu.Append(wx.ID_ANY, self.settings_text[2]))
         menu.AppendSeparator()
 
         # Recording hotkey
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.recording_hotkey,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[3]))
+                  menu.Append(wx.ID_ANY, self.settings_text[3]))
 
         # Playback hotkey
         self.Bind(wx.EVT_MENU,
                   control.SettingsCtrl.playback_hotkey,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[4]))
+                  menu.Append(wx.ID_ANY, self.settings_text[4]))
         menu.AppendSeparator()
 
         # Always on top
-        aot = menu.AppendCheckItem(wx.ID_ANY, SETTINGS_TEXT[5])
+        aot = menu.AppendCheckItem(wx.ID_ANY, self.settings_text[5])
         status = settings.CONFIG.getboolean('DEFAULT', 'Always On Top')
         aot.Check(status)
         sc = control.SettingsCtrl(self)
@@ -93,15 +91,33 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   sc.always_on_top,
                   aot)
 
-        # ABout
+        # Language
+        submenu = wx.Menu()
+        # Workaround for users of the previous version
+        current_lang = "en"
+        try:
+            current_lang = settings.CONFIG.get('DEFAULT', 'Language')
+        except:
+            pass
+
+        for l in os.listdir(os.path.join(self.path, "lang")):
+            lang_item = submenu.AppendRadioItem(wx.ID_ANY, l)
+            self.Bind(wx.EVT_MENU,
+                      sc.language,
+                      lang_item)
+            if l == current_lang:
+                lang_item.Check(True)
+        menu.AppendSubMenu(submenu, self.settings_text[6])
+
+        # About
         self.Bind(wx.EVT_MENU,
                   self.on_about,
-                  menu.Append(wx.ID_ABOUT, SETTINGS_TEXT[6]))
+                  menu.Append(wx.ID_ABOUT, self.settings_text[7]))
 
         # Exit
         self.Bind(wx.EVT_MENU,
                   self.on_close_dialog,
-                  menu.Append(wx.ID_ANY, SETTINGS_TEXT[7]))
+                  menu.Append(wx.ID_ANY, self.settings_text[8]))
         return menu
 
     def __init__(self, *args, **kwds):
@@ -109,67 +125,75 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         Build the interface
         """
         if getattr(sys, 'frozen', False):
-            path = sys._MEIPASS
+            self.path = sys._MEIPASS
         else:
-            path = Path(__file__).parent.absolute()
+            self.path = Path(__file__).parent.absolute()
         on_top = wx.DEFAULT_DIALOG_STYLE
         on_top = on_top if not settings.CONFIG.getboolean('DEFAULT', 'Always On Top') \
                 else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel = wx.Panel(self)
-        self.icon = wx.Icon(os.path.join(path, "img", "icon.png"))
+        self.icon = wx.Icon(os.path.join(self.path, "img", "icon.png"))
         self.SetIcon(self.icon)
         self.taskbar = TaskBarIcon(self)
         self.taskbar.SetIcon(self.icon, "atbswp")
 
+        locale = self.__load_locale()
+        self.app_text, self.settings_text = locale[:7], locale[7:]
         self.file_open_button = wx.BitmapButton(self,
                                                 wx.ID_ANY,
-                                                wx.Bitmap(os.path.join(path, "img", "file-upload.png"),
+                                                wx.Bitmap(os.path.join(self.path, "img", "file-upload.png"),
                                                           wx.BITMAP_TYPE_ANY))
-        self.file_open_button.SetToolTip(APP_TEXT[0])
+        self.file_open_button.SetToolTip(self.app_text[0])
         self.save_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
-                                           wx.Bitmap(os.path.join(path, "img", "save.png"),
+                                           wx.Bitmap(os.path.join(self.path, "img", "save.png"),
                                                      wx.BITMAP_TYPE_ANY))
-        self.save_button.SetToolTip(APP_TEXT[1])
+        self.save_button.SetToolTip(self.app_text[1])
         self.record_button = wx.BitmapToggleButton(self,
                                                    wx.ID_ANY,
-                                                   wx.Bitmap(os.path.join(path, "img", "video.png"),
+                                                   wx.Bitmap(os.path.join(self.path, "img", "video.png"),
                                                              wx.BITMAP_TYPE_ANY))
-        self.record_button.SetToolTip(APP_TEXT[2])
+        self.record_button.SetToolTip(self.app_text[2])
         self.play_button = wx.BitmapToggleButton(self,
                                                  wx.ID_ANY,
-                                                 wx.Bitmap(os.path.join(path, "img", "play-circle.png"),
+                                                 wx.Bitmap(os.path.join(self.path, "img", "play-circle.png"),
                                                            wx.BITMAP_TYPE_ANY))
-        self.play_button.SetToolTip(APP_TEXT[3])
+        self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
-                                              wx.Bitmap(os.path.join(path, "img", "download.png"),
+                                              wx.Bitmap(os.path.join(self.path, "img", "download.png"),
                                                         wx.BITMAP_TYPE_ANY))
-        self.compile_button.SetToolTip(APP_TEXT[4])
+        self.compile_button.SetToolTip(self.app_text[4])
         self.settings_button = wx.BitmapButton(self,
                                                wx.ID_ANY,
-                                               wx.Bitmap(os.path.join(path, "img", "cog.png"),
+                                               wx.Bitmap(os.path.join(self.path, "img", "cog.png"),
                                                          wx.BITMAP_TYPE_ANY))
-        self.settings_button.SetToolTip(APP_TEXT[5])
+        self.settings_button.SetToolTip(self.app_text[5])
 
         self.help_button = wx.BitmapButton(self,
                                            wx.ID_ANY,
-                                           wx.Bitmap(os.path.join(path, "img", "question-circle.png"),
+                                           wx.Bitmap(os.path.join(self.path, "img", "question-circle.png"),
                                                      wx.BITMAP_TYPE_ANY))
-        self.help_button.SetToolTip(APP_TEXT[6])
+        self.help_button.SetToolTip(self.app_text[6])
 
         self.__add_bindings()
         self.__set_properties()
         self.__do_layout()
 
-    def load_locale(self):
+    def __load_locale(self):
         """
         Load the interface in user-defined language (default english)
         """
-        # TODO
-        pass
+        try:
+            lang = settings.CONFIG.get('DEFAULT', 'Language')
+            locale = open(os.path.join(self.path, "lang", lang)).read().splitlines()
+        except:
+            return
+        if locale == []:
+            return
+        return locale
 
     def __add_bindings(self):
         # file_save_ctrl
@@ -223,6 +247,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Layout()
 
     def on_key_press(self, event):
+        """ Create manually the event when the correct key is pressed"""
+
         keycode = event.GetKeyCode()
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))

@@ -45,8 +45,9 @@ clean-build: $(VENV)/activate ## Clean previous build
 build: export PYTHONOPTIMIZE = 1
 build: $(VENV)/activate ## Build the project for the current platform
 > @sed 's/DEV = True/DEV = False/' $(WORKDIR)/control.py -i
-> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png --clean --windowed \
+> $(PYINSTALLER) --icon=$(WORKDIR)/img/icon.png --clean --windowed --onefile \
 	--add-data $(WORKDIR)/img:img \
+	--add-data $(WORKDIR)/lang:lang \
 	$(WORKDIR)/atbswp.py
 
 run: $(VENV)/activate  ## Launch the project
