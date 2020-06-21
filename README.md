@@ -4,12 +4,16 @@
 Literally Automate the boring stuff with Python, allows the user to record his mouse and keyboard 
 actions and reproduce them identically as many times as he wants.
 
-# Download
+
+# Install instructions
+
+## Download
 
 You can download and run the installer/archive for your operating system (currently Windows and Linux) 
 from [here](https://github.com/rmpr/atbswp/releases)
 
-# Install instructions
+## From source
+
 Fedora
 ```shell
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
