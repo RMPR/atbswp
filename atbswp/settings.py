@@ -44,11 +44,11 @@ def save_config():
 try:
     with open(config_location) as config_file:
         CONFIG.read(config_location)
-except OSError:
+except:
     CONFIG['DEFAULT'] = {'Fast Play Speed': False,
                          'Infinite Playback': False,
                          'Repeat Count': 1,
                          'Recording Hotkey': 348,
                          'Playback Hotkey': 349,
                          'Always On Top': True,
-                         'Language': en}
+                         'Language': 'en'}
