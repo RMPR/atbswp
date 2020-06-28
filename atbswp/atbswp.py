@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-Entry point of the program
-"""
+"""Entry point of the program."""
 
 import gui
 
@@ -27,10 +25,10 @@ import wx
 
 
 class Atbswp(wx.App):
+    """Main class of the program."""
+
     def OnInit(self):
-        """
-        Initialize the main Window
-        """
+        """Initialize the main Window."""
         self.main = gui.MainDialog(None, wx.ID_ANY, "atbswp")
         self.SetTopWindow(self.main)
         self.main.Show()

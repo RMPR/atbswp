@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Record mouse and keyboard actions and reproduce them identically at will
 #
 # Copyright (C) 2019 Mairo Rufus <akoudanilo@gmail.com>
@@ -26,6 +25,7 @@ import sys
 from pathlib import Path
 
 import control
+
 import settings
 
 import wx
@@ -33,10 +33,7 @@ import wx.adv
 
 
 class MainDialog(wx.Dialog, wx.MiniFrame):
-    """
-    Main windows of the app, it's a dialog to display_button the app correctly
-    even with tiling WMs
-    """
+    """Main Window, a dialog to display the app correctly even on tiling WMs."""
 
     app_text = ["Load Capture", "Save", "Start/Stop Capture", "Play", "Compile to executable",
                 "Preferences", "Help"]
@@ -44,11 +41,13 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                      "&Playback Hotkey", "Always on &Top", "&Language", "&About", "&Exit"]
 
     def on_settings_click(self, event):
+        """Triggered when the popup menu is clicked."""
         self.settings_popup()
         event.GetEventObject().PopupMenu(self.settings_popup())
         event.Skip()
 
     def settings_popup(self):
+        """Build the popup menu."""
         menu = wx.Menu()
         # Replay fast
         ps = menu.Append(wx.ID_ANY, self.settings_text[0])
@@ -100,12 +99,12 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         except:
             pass
 
-        for l in os.listdir(os.path.join(self.path, "lang")):
+        for language in os.listdir(os.path.join(self.path, "lang")):
             lang_item = submenu.AppendRadioItem(wx.ID_ANY, l)
             self.Bind(wx.EVT_MENU,
                       sc.language,
                       lang_item)
-            if l == current_lang:
+            if language == current_lang:
                 lang_item.Check(True)
         menu.AppendSubMenu(submenu, self.settings_text[6])
 
@@ -121,16 +120,14 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         return menu
 
     def __init__(self, *args, **kwds):
-        """
-        Build the interface
-        """
+        """Build the interface."""
         if getattr(sys, 'frozen', False):
             self.path = sys._MEIPASS
         else:
             self.path = Path(__file__).parent.absolute()
         on_top = wx.DEFAULT_DIALOG_STYLE
         on_top = on_top if not settings.CONFIG.getboolean('DEFAULT', 'Always On Top') \
-                else on_top | wx.STAY_ON_TOP
+                        else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel = wx.Panel(self)
@@ -183,9 +180,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.__do_layout()
 
     def __load_locale(self):
-        """
-        Load the interface in user-defined language (default english)
-        """
+        """Load the interface in user-defined language (default english)."""
         try:
             lang = settings.CONFIG.get('DEFAULT', 'Language')
             locale = open(os.path.join(self.path, "lang", lang)).read().splitlines()
@@ -247,8 +242,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Layout()
 
     def on_key_press(self, event):
-        """ Create manually the event when the correct key is pressed"""
-
+        """ Create manually the event when the correct key is pressed."""
         keycode = event.GetKeyCode()
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
@@ -271,11 +265,13 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             event.Skip()
 
     def on_exit_app(self, event):
+        """Clean exit saving the settings."""
         settings.save_config()
         self.Destroy()
         self.taskbar.Destroy()
 
     def on_close_dialog(self, event):
+        """Confirm exit."""
         dialog = wx.MessageDialog(self,
                                   message="Are you sure you want to quit?",
                                   caption="Confirm Exit",
@@ -289,6 +285,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             event.StopPropagation()
 
     def on_about(self, event):
+        """About dialog."""
         info = wx.adv.AboutDialogInfo()
         info.Name = "atbswp"
         info.Version = "v0.1"
@@ -302,6 +299,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
+    """Taskbar showing the state of the recording."""
+
     def __init__(self, parent):
         self.parent = parent
         super(TaskBarIcon, self).__init__()

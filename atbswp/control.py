@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
-# Record mouse and keyboard actions and reproduce them identically at will
+"""Control actions triggered by the GUI."""
+
+# atbswp: Record mouse and keyboard actions and reproduce them identically at will
 #
 # Copyright (C) 2019 Mairo Rufus <akoudanilo@gmail.com>
 #
@@ -16,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
-import sys
 import platform
 import py_compile
 import shutil
@@ -27,12 +27,11 @@ from datetime import date
 from pathlib import Path
 from threading import Thread
 
-import settings
-
 import pyautogui
 
-from pynput import keyboard
-from pynput import mouse
+from pynput import keyboard, mouse
+
+import settings
 
 import wx
 import wx.adv
@@ -51,19 +50,21 @@ HEADER = (
 
 
 class FileChooserCtrl:
-    """
-    Control class for both the open capture and save capture options
+    """Control class for both the open capture and save capture options.
 
-    keyboard.Keyword arguments
+    Keyword arguments:
     capture -- content of the temporary file
+    parent -- the parent Frame
     """
 
     capture = str()
 
     def __init__(self, parent):
+        """Set the parent frame."""
         self.parent = parent
 
     def load_content(self, path):
+        """Load the temp file capture from disk."""
         # TODO: Better input control
         if not path or not os.path.isfile(path):
             return None
@@ -71,6 +72,7 @@ class FileChooserCtrl:
             return f.read()
 
     def load_file(self, event):
+        """Load a capture manually chosen by the user."""
         title = "Choose a capture file:"
         dlg = wx.FileDialog(self.parent,
                             message=title,
@@ -84,6 +86,7 @@ class FileChooserCtrl:
         dlg.Destroy()
 
     def save_file(self, event):
+        """Save the capture currently loaded."""
         with wx.FileDialog(self.parent, "Save capture file", wildcard="*",
                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
 
@@ -99,13 +102,15 @@ class FileChooserCtrl:
 
 
 class RecordCtrl:
-    """
-    Control class for the record button
+    """Control class for the record button.
 
-    keyboard.Keyword arguments:
+    Keyword arguments:
     capture -- current recording
+    mouse_sensibility -- granularity for mouse capture
     """
+
     def __init__(self):
+        """Initialize a new record."""
         self._header = HEADER
 
         self._capture = [self._header]
@@ -117,6 +122,13 @@ class RecordCtrl:
             self.path = Path(__file__).parent.absolute()
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
+        """Append a new mouse move to capture.
+
+        Keyword arguments:
+        engine -- the replay library used (default pyautogui)
+        move -- the mouse movement (mouseDown, mouseUp, scroll, moveTo)
+        parameters -- the details of the movement
+        """
         def isinteger(s):
             try:
                 int(s)
@@ -134,9 +146,9 @@ class RecordCtrl:
         self._capture.append(engine + "." + move + '(' + parameters + ')')
 
     def write_keyboard_action(self, engine="pyautogui", move="", key=""):
-        """
-        Append keyboard actions to the class variable capture
-        Keyword Arguments:
+        """Append keyboard actions to the class variable capture.
+
+        Keyword arguments:
         - engine: the module which will be used for the replay
         - move: keyDown | keyUp
         - key: The key pressed
@@ -150,6 +162,7 @@ class RecordCtrl:
         self._capture.append(engine + "." + move + suffix)
 
     def on_move(self, x, y):
+        """Triggered by a mouse move."""
         if not self.recording:
             return False
         b = time.perf_counter()
@@ -160,6 +173,7 @@ class RecordCtrl:
         self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
 
     def on_click(self, x, y, button, pressed):
+        """Triggered by a mouse click."""
         if not self.recording:
             return False
         if pressed:
@@ -182,11 +196,13 @@ class RecordCtrl:
                 wx.LogError("Mouse Button not recognized")
 
     def on_scroll(self, x, y, dx, dy):
+        """Triggered by a mouse wheel scroll."""
         if not self.recording:
             return False
         self.write_mouse_action(move="scroll", parameters=f"{y}")
 
     def on_press(self, key):
+        """Triggered by a key press."""
         if not self.recording:
             return False
         b = time.perf_counter()
@@ -308,6 +324,7 @@ class RecordCtrl:
                 self._capture.append(f"### {key} is not supported yet")
 
     def on_release(self, key):
+        """Triggered by a key released."""
         if not self.recording:
             return False
         if key == keyboard.Key.alt:
@@ -418,6 +435,7 @@ class RecordCtrl:
                 self.write_keyboard_action(move='keyUp', key=key)
 
     def action(self, event):
+        """Triggered when the recording button is clicked on the GUI."""
         listener_mouse = mouse.Listener(
             on_move=self.on_move,
             on_click=self.on_click,
@@ -449,23 +467,18 @@ class RecordCtrl:
 
 
 class PlayCtrl:
-    """
-    Control class for the play button
-    """
+    """Control class for the play button."""
+
     global TMP_PATH
 
-    def __init__(self):
-        pass
-
     def play(self, capture, toggle_button):
+        """Play the loaded capture."""
         toggle_button.Value = True
         exec(capture)
         toggle_button.Value = False
 
     def action(self, event):
-        """
-         Replay a count number of time.
-        """
+        """Replay a `count` number of time."""
         toggle_button = event.GetEventObject()
         count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
@@ -481,23 +494,23 @@ class PlayCtrl:
                 toggle_button.Value = False
                 return
             if count == 1 and not infinite:
-                    self.play_thread = Thread()
-                    self.play_thread.daemon = True
-                    self.play_thread = Thread(target=self.play,
-                                         args=(capture, toggle_button,))
-                    self.play_thread.start()
+                self.play_thread = Thread()
+                self.play_thread.daemon = True
+                self.play_thread = Thread(target=self.play,
+                                          args=(capture, toggle_button,))
+                self.play_thread.start()
             else:
                 i = 1
                 while i <= count or infinite:
                     self.play_thread = Thread()
                     self.play_thread = Thread(target=self.play,
-                                         args=(capture, toggle_button,))
+                                              args=(capture, toggle_button,))
                     self.play_thread.start()
                     self.play_thread.join()
                     i += 1
         else:
             if getattr(sys, 'frozen', False):
-                path = os.path.join(Path(__file).parent.absolute(), 'atbswp')
+                path = os.path.join(Path(__file__).parent.absolute(), 'atbswp')
             else:
                 path = os.path.join(Path(__file__).parent.absolute(), 'atbswp.py')
             settings.save_config()
@@ -505,10 +518,12 @@ class PlayCtrl:
 
 
 class CompileCtrl:
+    """Produce an executable Python bytecode file."""
+
     @staticmethod
     def compile(event):
-        """
-        Return a compiled version of the capture currently loaded
+        """Return a compiled version of the capture currently loaded.
+
         For now it only returns a bytecode file.
         #TODO: Return a proper executable for the platform currently
         used **Without breaking the current workflow** which works both
@@ -534,24 +549,27 @@ class CompileCtrl:
 
 
 class SettingsCtrl:
-    """
-    Control class for the settings
-    """
+    """Control class for the settings."""
+
     def __init__(self, main_dialog):
+        """Copy the reference of the main Window."""
         self.main_dialog = main_dialog
 
     @staticmethod
     def playback_speed(event):
+        """Replay the capture 2 times faster."""
         # TODO: To implement
         pass
 
     @staticmethod
     def infinite_playback(event):
+        """Toggle infinite playback."""
         current_value = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         settings.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
 
     @staticmethod
     def repeat_count(event):
+        """Set the repeat count."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         dialog = SliderDialog(None, title="Choose a repeat count", size=(500, 50), default_value=current_value)
         dialog.ShowModal()
@@ -561,13 +579,14 @@ class SettingsCtrl:
 
     @staticmethod
     def recording_hotkey(event):
+        """Set the recording hotkey."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Recording Hotkey')
         dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
                               default_value=current_value-339, min_value=2, max_value=12)
         dialog.ShowModal()
         new_value = dialog.value + 339
         if new_value == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
-            dlg = wx.MessageDialog(None, "Recording hotkey should be different from Playback one", "Error", wx.OK|wx.ICON_ERROR)
+            dlg = wx.MessageDialog(None, "Recording hotkey should be different from Playback one", "Error", wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
@@ -575,25 +594,28 @@ class SettingsCtrl:
 
     @staticmethod
     def playback_hotkey(event):
+        """Set the playback hotkey."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Playback Hotkey')
         dialog = SliderDialog(None, title="Choose a function key: F2-12", size=(500, 50),
                               default_value=current_value-339, min_value=2, max_value=12)
         dialog.ShowModal()
         new_value = dialog.value + 339
         if new_value == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
-            dlg = wx.MessageDialog(None, "Playback hotkey should be different from Recording one", "Error", wx.OK|wx.ICON_ERROR)
+            dlg = wx.MessageDialog(None, "Playback hotkey should be different from Recording one", "Error", wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
         settings.CONFIG['DEFAULT']['Playback Hotkey'] = str(new_value)
 
     def always_on_top(self, event):
+        """Toggle the always on top setting."""
         current_value = settings.CONFIG['DEFAULT']['Always On Top']
         style = self.main_dialog.GetWindowStyle()
         self.main_dialog.SetWindowStyle(style ^ wx.STAY_ON_TOP)
         settings.CONFIG['DEFAULT']['Always On Top'] = str(not current_value)
 
     def language(self, event):
+        """Manage the language among the one available."""
         menu = event.EventObject
         item = menu.FindItemById(event.Id)
         settings.CONFIG['DEFAULT']['Language'] = item.Name
@@ -602,22 +624,22 @@ class SettingsCtrl:
                                   pos=wx.DefaultPosition)
         dialog.ShowModal()
 
+
 class HelpCtrl:
-    """
-    Control class for the About menu
-    """
+    """Control class for the About menu."""
+
     @staticmethod
     def action(event):
+        """Open the browser on the quick demo of atbswp"""
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
 
 
 class SliderDialog(wx.Dialog):
-    """
-    Wrap a slider in a dialog and get the value
-    """
+    """Wrap a slider in a dialog and get the value"""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the widget with the custom attributes."""
         self._current_value = kwargs.pop("default_value", 1)
         self.min_value = kwargs.pop("min_value", 1)
         self.max_value = kwargs.pop("max_value", 999)
@@ -627,25 +649,28 @@ class SliderDialog(wx.Dialog):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
     def init_ui(self):
+        """Initialize the UI elements"""
         pnl = wx.Panel(self)
         sizer = wx.BoxSizer(orient=wx.HORIZONTAL)
         self.slider = wx.Slider(parent=pnl, id=wx.ID_ANY, value=self._current_value,
-                           minValue=self.min_value, maxValue=self.max_value,
-                           name="Choose a number", size=self.GetSize(),
-                           style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
+                                minValue=self.min_value, maxValue=self.max_value,
+                                name="Choose a number", size=self.GetSize(),
+                                style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
         sizer.Add(self.slider)
         pnl.SetSizer(sizer)
         sizer.Fit(self)
 
     def on_close(self, event):
+        """Triggered when the widget is closed."""
         self._value = self.slider.Value
         event.Skip()
 
     @property
     def value(self):
+        """Getter."""
         return self._value
 
     @value.setter
     def value(self, value):
+        """Setter."""
         self._value = value
-
