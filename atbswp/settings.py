@@ -51,4 +51,4 @@ except OSError:
                          'Recording Hotkey': 348,
                          'Playback Hotkey': 349,
                          'Always On Top': True,
-                         'Language': en}
+                         'Language': 'en'}
