@@ -100,7 +100,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             pass
 
         for language in os.listdir(os.path.join(self.path, "lang")):
-            lang_item = submenu.AppendRadioItem(wx.ID_ANY, l)
+            lang_item = submenu.AppendRadioItem(wx.ID_ANY, language)
             self.Bind(wx.EVT_MENU,
                       sc.language,
                       lang_item)
