@@ -48,6 +48,8 @@ HEADER = (
             f"pyautogui.FAILSAFE = False\n"
         )
 
+LOOKUP_SPECIAL_KEY = {}
+
 
 class FileChooserCtrl:
     """Control class for both the open capture and save capture options.
@@ -112,6 +114,7 @@ class RecordCtrl:
     def __init__(self):
         """Initialize a new record."""
         self._header = HEADER
+        self._error = "### This key is not supported yet"
 
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
@@ -120,6 +123,50 @@ class RecordCtrl:
             self.path = sys._MEIPASS
         else:
             self.path = Path(__file__).parent.absolute()
+
+        LOOKUP_SPECIAL_KEY[keyboard.Key.alt] = 'alt'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.alt_l] = 'altleft'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.alt_r] = 'altright'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.alt_gr] = 'altright'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.backspace] = 'backspace'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.caps_lock] = 'capslock'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.cmd] = 'winleft'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.cmd_r] = 'winright'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.ctrl] = 'ctrlleft'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.ctrl_r] = 'ctrlright'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.delete] = 'delete'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.down] = 'down'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.end] = 'end'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.enter] = 'enter'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.esc] = 'esc'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f1] = 'f1'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f2] = 'f2'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f3] = 'f3'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f4] = 'f4'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f5] = 'f5'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f6] = 'f6'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f7] = 'f7'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f8] = 'f8'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f9] = 'f9'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f10] = 'f10'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f11] = 'f11'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.f12] = 'f12'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.home] = 'home'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.left] = 'left'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.page_down] = 'pagedown'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.page_up] = 'pageup'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.right] = 'right'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.shift] = 'shift_left'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.shift_r] = 'shiftright'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.space] = 'space'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.tab] = 'tab'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.up] = 'up'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.media_play_pause] = 'playpause'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.insert] = 'insert'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.num_lock] = 'num_lock'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.pause] = 'pause'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.print_screen] = 'print_screen'
+        LOOKUP_SPECIAL_KEY[keyboard.Key.scroll_lock] = 'scroll_lock'
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         """Append a new mouse move to capture.
@@ -217,222 +264,21 @@ class RecordCtrl:
                 self.write_keyboard_action(move='keyDown', key=key.char)
 
         except AttributeError:
-            if key == keyboard.Key.alt:
-                if platform.system() == "Darwin":
-                    self.write_keyboard_action(move="keyDown", key='option')
-                else:
-                    self.write_keyboard_action(move="keyDown", key='alt')
-            elif key == keyboard.Key.alt_l:
-                if platform.system() == "Darwin":
-                    self.write_keyboard_action(move="keyDown", key='optionleft')
-                else:
-                    self.write_keyboard_action(move='keyDown', key='altleft')
-            elif key == keyboard.Key.alt_r:
-                if platform.system() == "Darwin":
-                    self.write_keyboard_action(move='keyDown', key='optionright')
-                else:
-                    self.write_keyboard_action(move='keyDown', key='altright')
-            elif key == keyboard.Key.alt_gr:
-                self.write_keyboard_action(move='keyDown', key='altright')
-            elif key == keyboard.Key.backspace:
-                self.write_keyboard_action(move='keyDown', key='backspace')
-            elif key == keyboard.Key.caps_lock:
-                self.write_keyboard_action(move='keyDown', key='capslock')
-            elif key == keyboard.Key.cmd:
-                if platform.system() == "Darwin":
-                    self.write_keyboard_action(move='keyDown', key='command')
-                else:
-                    self.write_keyboard_action(move='keyDown', key='winleft')
-            elif key == keyboard.Key.cmd_r:
-                if platform.system() == "Darwin":
-                    self.write_keyboard_action(move='keyDown', key='cmdright')
-                else:
-                    self.write_keyboard_action(move='keyDown', key='winright')
-            elif key == keyboard.Key.ctrl:
-                self.write_keyboard_action(move='keyDown', key='ctrlleft')
-            elif key == keyboard.Key.ctrl_r:
-                self.write_keyboard_action(move='keyDown', key='ctrlright')
-            elif key == keyboard.Key.delete:
-                self.write_keyboard_action(move='keyDown', key='delete')
-            elif key == keyboard.Key.down:
-                self.write_keyboard_action(move='keyDown', key='down')
-            elif key == keyboard.Key.end:
-                self.write_keyboard_action(move='keyDown', key='end')
-            elif key == keyboard.Key.enter:
-                self.write_keyboard_action(move='keyDown', key='enter')
-            elif key == keyboard.Key.esc:
-                self.write_keyboard_action(move='keyDown', key='esc')
-            elif key == keyboard.Key.f1:
-                self.write_keyboard_action(move='keyDown', key='f1')
-            elif key == keyboard.Key.f2:
-                self.write_keyboard_action(move='keyDown', key='f2')
-            elif key == keyboard.Key.f3:
-                self.write_keyboard_action(move='keyDown', key='f3')
-            elif key == keyboard.Key.f4:
-                self.write_keyboard_action(move='keyDown', key='f4')
-            elif key == keyboard.Key.f5:
-                self.write_keyboard_action(move='keyDown', key='f5')
-            elif key == keyboard.Key.f6:
-                self.write_keyboard_action(move='keyDown', key='f6')
-            elif key == keyboard.Key.f7:
-                self.write_keyboard_action(move='keyDown', key='f7')
-            elif key == keyboard.Key.f8:
-                self.write_keyboard_action(move='keyDown', key='f8')
-            elif key == keyboard.Key.f9:
-                self.write_keyboard_action(move='keyDown', key='f9')
-            elif key == keyboard.Key.f10:
-                self.write_keyboard_action(move='keyDown', key='f10')
-            elif key == keyboard.Key.f11:
-                self.write_keyboard_action(move='keyDown', key='f11')
-            elif key == keyboard.Key.f12:
-                self.write_keyboard_action(move='keyDown', key='f12')
-            elif key == keyboard.Key.home:
-                self.write_keyboard_action(move='keyDown', key='home')
-            elif key == keyboard.Key.left:
-                self.write_keyboard_action(move='keyDown', key='left')
-            elif key == keyboard.Key.page_down:
-                self.write_keyboard_action(move='keyDown', key='pagedown')
-            elif key == keyboard.Key.page_up:
-                self.write_keyboard_action(move='keyDown', key='pageup')
-            elif key == keyboard.Key.right:
-                self.write_keyboard_action(move='keyDown', key='right')
-            elif key == keyboard.Key.shift:
-                self.write_keyboard_action(move='keyDown', key='shift_left')
-            elif key == keyboard.Key.shift_r:
-                self.write_keyboard_action(move='keyDown', key='shiftright')
-            elif key == keyboard.Key.space:
-                self.write_keyboard_action(move='keyDown', key='space')
-            elif key == keyboard.Key.tab:
-                self.write_keyboard_action(move='keyDown', key='tab')
-            elif key == keyboard.Key.up:
-                self.write_keyboard_action(move='keyDown', key='up')
-            elif key == keyboard.Key.media_play_pause:
-                self.write_keyboard_action(move='keyDown', key='playpause')
-            elif key == keyboard.Key.insert:
-                self.write_keyboard_action(move='keyDown', key='insert')
-            elif key == keyboard.Key.menu:
-                self._capture.append(f"### The menu key is not handled yet")
-            elif key == keyboard.Key.num_lock:
-                self.write_keyboard_action(move='keyDown', key='num_lock')
-            elif key == keyboard.Key.pause:
-                self.write_keyboard_action(move='keyDown', key='pause')
-            elif key == keyboard.Key.print_screen:
-                self.write_keyboard_action(move='keyDown', key='print_screen')
-            elif key == keyboard.Key.scroll_lock:
-                self.write_keyboard_action(move='keyDown', key='scroll_lock')
-            else:
-                self._capture.append(f"### {key} is not supported yet")
+            self.write_keyboard_action(move="keyDown",
+                                       key=LOOKUP_SPECIAL_KEY.get(key,
+                                       self._error))
 
     def on_release(self, key):
         """Triggered by a key released."""
         if not self.recording:
             return False
-        if key == keyboard.Key.alt:
-            if platform.system() == "Darwin":
-                self.write_keyboard_action(move='keyUp', key='option')
-            else:
-                self.write_keyboard_action(move='keyUp', key='alt')
-        elif key == keyboard.Key.alt_l:
-            if platform.system() == "Darwin":
-                self.write_keyboard_action(move='keyUp', key='optionleft')
-            else:
-                self.write_keyboard_action(move='keyUp', key='altleft')
-        elif key == keyboard.Key.alt_r:
-            if platform.system() == "Darwin":
-                self.write_keyboard_action(move='keyUp', key='optionright')
-            else:
-                self.write_keyboard_action(move='keyUp', key='altright')
-        elif key == keyboard.Key.alt_gr:
-            self.write_keyboard_action(move='keyUp', key='altright')
-        elif key == keyboard.Key.backspace:
-            self.write_keyboard_action(move='keyUp', key='backspace')
-        elif key == keyboard.Key.caps_lock:
-            self.write_keyboard_action(move='keyUp', key='capslock')
-        elif key == keyboard.Key.cmd:
-            if platform.system() == "Darwin":
-                self.write_keyboard_action(move='keyUp', key='command')
-            else:
-                self.write_keyboard_action(move='keyUp', key='winleft')
-        elif key == keyboard.Key.cmd_r:
-            if platform.system() == "Darwin":
-                self.write_keyboard_action(move='keyUp', key='cmdright')
-            else:
-                self.write_keyboard_action(move='keyUp', key='winright')
-        elif key == keyboard.Key.ctrl:
-            self.write_keyboard_action(move='keyUp', key='ctrlleft')
-        elif key == keyboard.Key.ctrl_r:
-            self.write_keyboard_action(move='keyUp', key='ctrlright')
-        elif key == keyboard.Key.delete:
-            self.write_keyboard_action(move='keyUp', key='delete')
-        elif key == keyboard.Key.down:
-            self.write_keyboard_action(move='keyUp', key='down')
-        elif key == keyboard.Key.end:
-            self.write_keyboard_action(move='keyUp', key='end')
-        elif key == keyboard.Key.enter:
-            self.write_keyboard_action(move='keyUp', key='enter')
-        elif key == keyboard.Key.esc:
-            self.write_keyboard_action(move='keyUp', key='esc')
-        elif key == keyboard.Key.f1:
-            self.write_keyboard_action(move='keyUp', key='f1')
-        elif key == keyboard.Key.f2:
-            self.write_keyboard_action(move='keyUp', key='f2')
-        elif key == keyboard.Key.f3:
-            self.write_keyboard_action(move='keyUp', key='f3')
-        elif key == keyboard.Key.f4:
-            self.write_keyboard_action(move='keyUp', key='f4')
-        elif key == keyboard.Key.f5:
-            self.write_keyboard_action(move='keyUp', key='f5')
-        elif key == keyboard.Key.f6:
-            self.write_keyboard_action(move='keyUp', key='f6')
-        elif key == keyboard.Key.f7:
-            self.write_keyboard_action(move='keyUp', key='f7')
-        elif key == keyboard.Key.f8:
-            self.write_keyboard_action(move='keyUp', key='f8')
-        elif key == keyboard.Key.f9:
-            self.write_keyboard_action(move='keyUp', key='f9')
-        elif key == keyboard.Key.f10:
-            self.write_keyboard_action(move='keyUp', key='f10')
-        elif key == keyboard.Key.f11:
-            self.write_keyboard_action(move='keyUp', key='f11')
-        elif key == keyboard.Key.f12:
-            self.write_keyboard_action(move='keyUp', key='f12')
-        elif key == keyboard.Key.home:
-            self.write_keyboard_action(move='keyUp', key='home')
-        elif key == keyboard.Key.left:
-            self.write_keyboard_action(move='keyUp', key='left')
-        elif key == keyboard.Key.page_down:
-            self.write_keyboard_action(move='keyUp', key='pagedown')
-        elif key == keyboard.Key.page_up:
-            self.write_keyboard_action(move='keyUp', key='pageup')
-        elif key == keyboard.Key.right:
-            self.write_keyboard_action(move='keyUp', key='right')
-        elif key == keyboard.Key.shift:
-            self.write_keyboard_action(move='keyUp', key='shift_left')
-        elif key == keyboard.Key.shift_r:
-            self.write_keyboard_action(move='keyUp', key='shiftright')
-        elif key == keyboard.Key.space:
-            self.write_keyboard_action(move='keyUp', key='space')
-        elif key == keyboard.Key.tab:
-            self.write_keyboard_action(move='keyUp', key='tab')
-        elif key == keyboard.Key.up:
-            self.write_keyboard_action(move='keyUp', key='up')
-        elif key == keyboard.Key.media_play_pause:
-            self.write_keyboard_action(move='keyUp', key='playpause')
-        elif key == keyboard.Key.insert:
-            self.write_keyboard_action(move='keyUp', key='insert')
-        elif key == keyboard.Key.menu:
-            self._capture.append(f"### The menu key is not handled yet")
-        elif key == keyboard.Key.num_lock:
-            self.write_keyboard_action(move='keyUp', key='num_lock')
-        elif key == keyboard.Key.pause:
-            self.write_keyboard_action(move='keyUp', key='pause')
-        elif key == keyboard.Key.print_screen:
-            self.write_keyboard_action(move='keyUp', key='print_screen')
-        elif key == keyboard.Key.scroll_lock:
-            self.write_keyboard_action(move='keyUp', key='scroll_lock')
         else:
             if len(str(key)) <= 3:
                 self.write_keyboard_action(move='keyUp', key=key)
+            else:
+                self.write_keyboard_action(move="keyUp",
+                                           key=LOOKUP_SPECIAL_KEY.get(key,
+                                           self._error))
 
     def action(self, event):
         """Triggered when the recording button is clicked on the GUI."""
