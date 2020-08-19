@@ -18,11 +18,11 @@ lockfile==0.12.2
 more-itertools==8.0.2
 MouseInfo==0.1.2
 msgpack==0.6.2
-numpy==1.17.4
 pastel==0.1.1
 pexpect==4.7.0
 Pillow==6.2.2
 pkginfo==1.5.0.1
+numpy
 poetry==1.0.0
 ptyprocess==0.6.0
 PyAutoGUI==0.9.48
