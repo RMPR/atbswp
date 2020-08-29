@@ -185,9 +185,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             lang = settings.CONFIG.get('DEFAULT', 'Language')
             locale = open(os.path.join(self.path, "lang", lang)).read().splitlines()
         except:
-            return
-        if locale == []:
-            return
+            return self.app_text + self.settings_text
+
         return locale
 
     def __add_bindings(self):
