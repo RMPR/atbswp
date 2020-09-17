@@ -1,6 +1,17 @@
 Actually it's not really formal, but if you spot any issue, you can always submit a PR :)
+# Install the development libraries
+To be able to build atbswp, we rely on a couple of tools `poetry` for the wheel and `pyinstaller` 
+to build standalone executables for the supported platforms, you can find both on PyPI.
+
+```
+pip install poetry pyinstaller
+```
+
+##
+
 # Optimizations
-To enable optimizations, you may want to install `upx` which is easily done on Fedora:
+While building the binary, you may want to enable optimizations, in that case, 
+install `upx` which is easily done on Fedora:
 ```
 sudo dnf install -y upx
 ```
@@ -13,6 +24,14 @@ more information. In this case, you must rely on your package manager to install
 and copy the folder wx inside the global Python site-packages to the site-packages of the
 local Python
 
-### Workaround
+## Workaround
 I've actually removed wxPython from requirements-dev.txt now if you add a dependency you
-will need to do the same.
+will need to do the same. And if you are on the latest version, I removed requirements-dev 
+altogether.
+
+## Open capture, save capture and generate executable make atbswp crash
+While using the releases, you can experience systematic crashes when trying to use the 
+features aforementioned, this is a problem with the Glibc we built the releases against.
+
+## Workaround
+Build the executable for your architecture directly from source.
