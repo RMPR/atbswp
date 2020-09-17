@@ -25,15 +25,14 @@ Debian
 ```shell
 sudo apt install git python3-dev python3-tk python3-setuptools python3-wheel python3-pip python3-wxgtk4.0
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
-python3 -m pip install -r requirements-dev.txt --user 
+python3 -m pip install pyautogui pynput --user
 python3 atbswp/atbswp.py
 ```
 Windows
 ```shell
 git clone https://github.com/rmpr/atbswp
 cd atbswp\
-pip install wxPython 
-pip install -r requirements-dev.txt
+pip install wxPython pyautogui pynput
 python atbswp\atbswp.py
 ```
 
