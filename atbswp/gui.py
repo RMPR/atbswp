@@ -260,8 +260,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                 btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
                 btnEvent.EventObject = self.play_button
                 control.PlayCtrl().action(btnEvent)
-        else:
-            event.Skip()
+        event.Skip()
 
     def on_exit_app(self, event):
         """Clean exit saving the settings."""
