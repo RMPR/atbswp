@@ -47,6 +47,13 @@ While I've mainly used it to automate my Asphalt runs, I think this can be far m
 
 If you use it for something really cool you can always reach me at akoudanilo(at) gmail (dot) com or drop
 a PR :). Bonus points if you have a demo video.
+
+# Donate
+<img src="https://cdn.buymeacoffee.com/buttons/v2/default-black.png" width="150" alt="Buy me a coffee">
+
+If you found this helpful in any way.
+
+
 # Contributions
 Contributions are welcomed, see [CONTRIBUTING.md](./CONTRIBUTING.md)
 
