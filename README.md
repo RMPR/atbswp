@@ -49,7 +49,7 @@ If you use it for something really cool you can always reach me at akoudanilo(at
 a PR :). Bonus points if you have a demo video.
 
 # Donate
-<img src="https://cdn.buymeacoffee.com/buttons/v2/default-black.png" width="150" alt="Buy me a coffee">
+<a href="https://www.buymeacoffee.com/rmpr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-black.png" width="150" alt="Buy me a coffee"></a>
 
 If you found this helpful in any way.
 
