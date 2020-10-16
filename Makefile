@@ -26,7 +26,7 @@ help: ## Display this help section
 prepare-dev: ## Prepare the development environment
 > @python -m venv .
 > @$(PYTHON) -m pip install --upgrade pip
-> @${PYTHON} -m pip install pytautogui pynput
+> @${PYTHON} -m pip install pyautogui pynput
 > cp -r $(WX_PATH) $(VENV_SITE_PACKAGES)
 > @echo
 
