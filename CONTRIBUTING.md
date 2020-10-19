@@ -1,4 +1,8 @@
 Actually it's not really formal, but if you spot any issue, you can always submit a PR :)
+# Add a new language
+Create a file in the `lang` directory following the format of the language files already 
+there, we also accept typo fixes.
+
 # Install the development libraries
 To be able to build atbswp, we rely on a couple of tools `poetry` for the wheel and `pyinstaller` 
 to build standalone executables for the supported platforms, you can find both on PyPI.
@@ -6,8 +10,6 @@ to build standalone executables for the supported platforms, you can find both o
 ```
 pip install poetry pyinstaller
 ```
-
-##
 
 # Optimizations
 While building the binary, you may want to enable optimizations, in that case, 
