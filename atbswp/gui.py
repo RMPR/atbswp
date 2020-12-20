@@ -113,9 +113,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   self.on_about,
                   menu.Append(wx.ID_ABOUT, self.settings_text[7]))
 
-        # Exit
+        # Recording Timer
         self.Bind(wx.EVT_MENU,
-                  self.on_close_dialog,
+                  control.RecordCtrl.recording_timer,
                   menu.Append(wx.ID_ANY, self.settings_text[8]))
         return menu
 
