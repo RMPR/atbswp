@@ -280,6 +280,20 @@ class RecordCtrl:
                                            key=LOOKUP_SPECIAL_KEY.get(key,
                                            self._error))
 
+    def recording_timer(event):
+        """Set the recording timer."""
+        # Workaround for user upgrading from a previous version
+        try:
+            current_value = settings.CONFIG.getint('DEFAULT', 'Recording Timer')
+        except:
+            current_value = 0
+
+        dialog = SliderDialog(None, title="Choose an amount of time (seconds)", size=(500, 50), default_value=current_value)
+        dialog.ShowModal()
+        new_value = dialog.value
+        dialog.Destroy()
+        settings.CONFIG['DEFAULT']['Recording Timer'] = str(new_value)
+
     def action(self, event):
         """Triggered when the recording button is clicked on the GUI."""
         listener_mouse = mouse.Listener(
@@ -290,7 +304,10 @@ class RecordCtrl:
             on_press=self.on_press,
             on_release=self.on_release)
 
+        timer = settings.CONFIG.getint("DEFAULT", "Recording Timer")
+
         if event.GetEventObject().GetValue():
+            time.sleep(timer)
             listener_keyboard.start()
             listener_mouse.start()
             self.last_time = time.perf_counter()
