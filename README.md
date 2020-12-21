@@ -45,7 +45,7 @@ While I've mainly used it to automate my Asphalt runs, I think this can be far m
 - automate a demo during a conference for example
 - automate UAT in the devops process (as long as you're making something with a GUI).
 
-If you use it for something really cool you can always reach me at akoudanilo(at) gmail (dot) com or drop
+If you use it for something really cool you can always reach me at github (at) rmpr (dot) xyz or drop
 a PR :). Bonus points if you have a demo video.
 
 # Donate
