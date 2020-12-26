@@ -287,7 +287,7 @@ class RecordCtrl:
             current_value = settings.CONFIG.getint('DEFAULT', 'Recording Timer')
         except:
             current_value = 0
-
+    
         dialog = SliderDialog(None, title="Choose an amount of time (seconds)", size=(500, 50), default_value=current_value)
         dialog.ShowModal()
         new_value = dialog.value
@@ -304,10 +304,19 @@ class RecordCtrl:
             on_press=self.on_press,
             on_release=self.on_release)
 
-        timer = settings.CONFIG.getint("DEFAULT", "Recording Timer")
+        try:
+            self.timer = settings.CONFIG.getint("DEFAULT", "Recording Timer")
+        except:
+            self.timer = 0
 
         if event.GetEventObject().GetValue():
-            time.sleep(timer)
+            if self.timer > 0:
+                self.countdown_dialog = CountdownDialog(None, title="Wait for the recording to start", countdown=self.timer)
+                self.wx_timer = wx.Timer(event.GetEventObject())
+                event.GetEventObject().Bind(wx.EVT_TIMER, self.update_timer, self.wx_timer)
+                self.wx_timer.Start(1000)
+                self.countdown_dialog.ShowModal()
+
             listener_keyboard.start()
             listener_mouse.start()
             self.last_time = time.perf_counter()
@@ -327,6 +336,15 @@ class RecordCtrl:
             self._capture = [self._header]
             recording_state = wx.Icon(os.path.join(self.path, "img", "icon.png"))
         event.GetEventObject().GetParent().taskbar.SetIcon(recording_state)
+
+    def update_timer(self, event):
+        """Check if it's the time to start to record"""
+        print(self.timer)
+        if self.timer <= 0:
+            self.wx_timer.Stop()
+            self.countdown_dialog.Destroy()
+        else:
+            self.timer = self.countdown_dialog.update_ui()
 
 
 class PlayCtrl:
@@ -497,6 +515,10 @@ class HelpCtrl:
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
 
+"""
+Because of cyclic import the two following custom widgets will be stored here 
+to be consumed by the elements of the package
+"""
 
 class SliderDialog(wx.Dialog):
     """Wrap a slider in a dialog and get the value"""
@@ -537,3 +559,27 @@ class SliderDialog(wx.Dialog):
     def value(self, value):
         """Setter."""
         self._value = value
+
+
+class CountdownDialog(wx.Dialog):
+    """Display a dialog with a countdown"""
+
+    def __init__(self, *args, **kwargs):
+        self._countdown = kwargs.pop("countdown", 0)
+        super(CountdownDialog, self).__init__(*args, **kwargs)
+        self.init_ui()
+
+    def init_ui(self):
+        self.pnl = wx.Panel(self)
+        self.sizer = wx.BoxSizer(orient=wx.HORIZONTAL)
+        message = wx.StaticText(self, label=f"The recording will start in {self._countdown} seconds")
+        self.sizer.Add(message)
+        self.pnl.SetSizer(self.sizer)
+        self.sizer.Fit(self)
+
+    def update_ui(self):
+        self._countdown -= 1
+        self.sizer.Clear(True)
+        message = wx.StaticText(self, label=f"The recording will start in {self._countdown} seconds")
+        self.sizer.Add(message)
+        return self._countdown
