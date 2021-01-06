@@ -541,6 +541,7 @@ class SliderDialog(wx.Dialog):
                                 minValue=self.min_value, maxValue=self.max_value,
                                 name="Choose a number", size=self.GetSize(),
                                 style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
+        self.cancel_button = wx.Button(self, id=wx.ID_CANCEL)
         sizer.Add(self.slider)
         pnl.SetSizer(sizer)
         sizer.Fit(self)
