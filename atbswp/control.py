@@ -536,13 +536,15 @@ class SliderDialog(wx.Dialog):
     def init_ui(self):
         """Initialize the UI elements"""
         pnl = wx.Panel(self)
-        sizer = wx.BoxSizer(orient=wx.HORIZONTAL)
+        sizer = wx.BoxSizer(orient=wx.VERTICAL)
         self.slider = wx.Slider(parent=pnl, id=wx.ID_ANY, value=self._current_value,
                                 minValue=self.min_value, maxValue=self.max_value,
                                 name="Choose a number", size=self.GetSize(),
                                 style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
         self.cancel_button = wx.Button(self, id=wx.ID_CANCEL)
+        self.cancel_button.SetSize(wx.Size(0,0)
         sizer.Add(self.slider)
+        sizer.Add(self.cancel_button)
         pnl.SetSizer(sizer)
         sizer.Fit(self)
 
