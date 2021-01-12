@@ -85,10 +85,13 @@ class FileChooserCtrl:
             self._capture = self.load_content(dlg.GetPath())
             with open(TMP_PATH, 'w') as f:
                 f.write(self._capture)
+        event.EventObject.Parent.panel.SetFocus()
         dlg.Destroy()
 
     def save_file(self, event):
         """Save the capture currently loaded."""
+        event.EventObject.Parent.panel.SetFocus()
+
         with wx.FileDialog(self.parent, "Save capture file", wildcard="*",
                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
 
@@ -287,7 +290,7 @@ class RecordCtrl:
             current_value = settings.CONFIG.getint('DEFAULT', 'Recording Timer')
         except:
             current_value = 0
-    
+
         dialog = SliderDialog(None, title="Choose an amount of time (seconds)", size=(500, 50), default_value=current_value)
         dialog.ShowModal()
         new_value = dialog.value
@@ -361,6 +364,7 @@ class PlayCtrl:
     def action(self, event):
         """Replay a `count` number of time."""
         toggle_button = event.GetEventObject()
+        toggle_button.Parent.panel.SetFocus()
         count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
@@ -416,6 +420,7 @@ class CompileCtrl:
             wx.LogError("No capture loaded")
             return
         default_file = "capture.pyc"
+        event.EventObject.Parent.panel.SetFocus()
         with wx.FileDialog(parent=event.GetEventObject().Parent, message="Save capture executable",
                            defaultDir=os.path.expanduser("~"), defaultFile=default_file, wildcard="*",
                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:

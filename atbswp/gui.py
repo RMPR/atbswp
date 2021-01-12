@@ -44,6 +44,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         """Triggered when the popup menu is clicked."""
         self.settings_popup()
         event.GetEventObject().PopupMenu(self.settings_popup())
+        event.EventObject.Parent.panel.SetFocus()
         event.Skip()
 
     def settings_popup(self):
@@ -215,6 +216,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
 
         self.panel.Bind(wx.EVT_KEY_UP, self.on_key_press)
+        self.panel.SetFocus()
 
     def __set_properties(self):
         self.file_open_button.SetSize(self.file_open_button.GetBestSize())
