@@ -531,6 +531,7 @@ class SliderDialog(wx.Dialog):
         super(SliderDialog, self).__init__(*args, **kwargs)
         self._value = 1
         self.init_ui()
+        self.slider.Bind(wx.EVT_KEY_UP, self.on_esc_press)
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
     def init_ui(self):
@@ -541,17 +542,20 @@ class SliderDialog(wx.Dialog):
                                 minValue=self.min_value, maxValue=self.max_value,
                                 name="Choose a number", size=self.GetSize(),
                                 style=wx.SL_VALUE_LABEL | wx.SL_AUTOTICKS)
-        self.cancel_button = wx.Button(self, id=wx.ID_CANCEL)
-        self.cancel_button.SetSize(wx.Size(0,0)
         sizer.Add(self.slider)
-        sizer.Add(self.cancel_button)
         pnl.SetSizer(sizer)
         sizer.Fit(self)
+
+    def on_esc_press(self, event):
+        """Close the dialog if the user presses ESC"""
+        if event.KeyCode == wx.WXK_ESCAPE:
+            self.Close()
+        event.Skip()
 
     def on_close(self, event):
         """Triggered when the widget is closed."""
         self._value = self.slider.Value
-        event.Skip()
+        self.Destroy()
 
     @property
     def value(self):
