@@ -457,9 +457,9 @@ class SettingsCtrl:
     def repeat_count(event):
         """Set the repeat count."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        dialog = SliderDialog(None, title="Choose a repeat count", size=(500, 50), default_value=current_value)
+        dialog = wx.NumberEntryDialog(None, message="Choose a repeat count", prompt="", caption="Repeat Count", value=current_value, min=1, max=999)
         dialog.ShowModal()
-        new_value = dialog.value
+        new_value = dialog.Value
         dialog.Destroy()
         settings.CONFIG['DEFAULT']['Repeat Count'] = str(new_value)
 
