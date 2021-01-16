@@ -245,8 +245,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
     def on_key_press(self, event):
         """ Create manually the event when the correct key is pressed."""
         keycode = event.GetKeyCode()
+
         if keycode == wx.WXK_F1:
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
+
         elif keycode == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
             btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
             btnEvent.EventObject = self.record_button
@@ -256,12 +258,18 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             else:
                 self.record_button.Value = False
                 self.rbc.action(btnEvent)
+
         elif keycode == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
             if not self.play_button.Value:
                 self.play_button.Value = True
                 btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
                 btnEvent.EventObject = self.play_button
                 control.PlayCtrl().action(btnEvent)
+
+        elif keycode == ord("R") and event.CmdDown():
+            menu_event = wx.CommandEvent(wx.wxEVT_MENU)
+            control.SettingsCtrl.repeat_count(menu_event)
+
         event.Skip()
 
     def on_exit_app(self, event):
