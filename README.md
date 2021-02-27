@@ -41,9 +41,10 @@ python atbswp\atbswp.py
 ![atbswp quick demo](demo/demo.gif)
 
 # Use cases
-While I've mainly used it to automate my Asphalt runs, I think this can be far more useful:
-- automate a demo during a conference for example
-- automate UAT in the devops process (as long as you're making something with a GUI).
+I've mainly used it to automate gold/point/XP farming in games, I think this can also be used to:
+
+- Automate a demo during a conference for example
+- Automate UAT in the devops process (as long as you're making something with a GUI).
 
 If you use it for something really cool you can always reach me at github (at) rmpr (dot) xyz or drop
 a PR :). Bonus points if you have a demo video.
