@@ -28,6 +28,13 @@ git clone https://github.com/RMPR/atbswp.git && cd atbswp
 python3 -m pip install pyautogui pynput --user
 python3 atbswp/atbswp.py
 ```
+Manjaro/Arch
+```shell
+sudo pacman -S tk python-wxpython
+python3 -m pip install pyautogui pynput --user
+git clone https://github.com/RMPR/atbswp.git && cd atbswp
+python3 atbswp/atbswp.py
+```
 Windows
 ```shell
 git clone https://github.com/rmpr/atbswp
