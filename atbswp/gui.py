@@ -201,8 +201,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_TOGGLEBUTTON, self.rbc.action, self.record_button)
 
         # play_button_ctrl
-        pbc = control.PlayCtrl()
-        self.Bind(wx.EVT_TOGGLEBUTTON, pbc.action, self.play_button)
+        self.pbc = control.PlayCtrl()
+        self.Bind(wx.EVT_TOGGLEBUTTON, self.pbc.action, self.play_button)
 
         # compile_button_ctrl
         self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile, self.compile_button)
@@ -264,7 +264,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                 self.play_button.Value = True
                 btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
                 btnEvent.EventObject = self.play_button
-                control.PlayCtrl().action(btnEvent)
+                self.pbc.action(btnEvent)
+            else:
+                self.play_button.Value = False
 
         elif keycode == ord("R") and event.CmdDown():
             menu_event = wx.CommandEvent(wx.wxEVT_MENU)

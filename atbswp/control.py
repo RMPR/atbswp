@@ -357,18 +357,23 @@ class PlayCtrl:
 
     global TMP_PATH
 
+    def __init__(self):
+        self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+
     def play(self, capture, toggle_button):
         """Play the loaded capture."""
-        toggle_button.Value = True
         exec(capture)
-        toggle_button.Value = False
+        btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+        btn_event.EventObject = toggle_button
+        if self.count <= 0 and not self.infinite:
+            toggle_button.Value = False
+        self.action(btn_event)
 
     def action(self, event):
         """Replay a `count` number of time."""
         toggle_button = event.GetEventObject()
         toggle_button.Parent.panel.SetFocus()
-        count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
@@ -380,28 +385,17 @@ class PlayCtrl:
                 wx.LogError("Empty capture")
                 toggle_button.Value = False
                 return
-            if count == 1 and not infinite:
+            if self.count > 0 or self.infinite:
+                self.count = self.count - 1 if not self.infinite else self.count
                 self.play_thread = Thread()
                 self.play_thread.daemon = True
                 self.play_thread = Thread(target=self.play,
                                           args=(capture, toggle_button,))
                 self.play_thread.start()
-            else:
-                i = 1
-                while i <= count or infinite:
-                    self.play_thread = Thread()
-                    self.play_thread = Thread(target=self.play,
-                                              args=(capture, toggle_button,))
-                    self.play_thread.start()
-                    self.play_thread.join()
-                    i += 1
         else:
-            if getattr(sys, 'frozen', False):
-                path = os.path.join(Path(__file__).parent.absolute(), 'atbswp')
-            else:
-                path = os.path.join(Path(__file__).parent.absolute(), 'atbswp.py')
+            self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+            self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
             settings.save_config()
-            os.execl(path)
 
 
 class CompileCtrl:
