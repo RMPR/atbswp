@@ -250,27 +250,37 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             control.HelpCtrl.action(wx.PyCommandEvent(wx.wxEVT_BUTTON))
 
         elif keycode == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
-            btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
-            btnEvent.EventObject = self.record_button
+            btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+            btn_event.EventObject = self.record_button
             if not self.record_button.Value:
                 self.record_button.Value = True
-                self.rbc.action(btnEvent)
+                self.rbc.action(btn_event)
             else:
                 self.record_button.Value = False
-                self.rbc.action(btnEvent)
+                self.rbc.action(btn_event)
 
         elif keycode == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
             if not self.play_button.Value:
                 self.play_button.Value = True
-                btnEvent = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
-                btnEvent.EventObject = self.play_button
-                self.pbc.action(btnEvent)
+                btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+                btn_event.EventObject = self.play_button
+                self.pbc.action(btn_event)
             else:
                 self.play_button.Value = False
 
         elif keycode == ord("R") and event.CmdDown():
             menu_event = wx.CommandEvent(wx.wxEVT_MENU)
             control.SettingsCtrl.repeat_count(menu_event)
+
+        elif keycode == ord("O") and event.CmdDown():
+            btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+            btn_event.EventObject = self.file_open_button
+            self.fsc.load_file(btn_event)
+
+        elif keycode == ord("S") and event.CmdDown():
+            btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+            btn_event.EventObject = self.save_button
+            self.fsc.save_file(btn_event)
 
         event.Skip()
 
