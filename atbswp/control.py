@@ -25,6 +25,7 @@ import tempfile
 import time
 from datetime import date
 from pathlib import Path
+from threading import Event
 from threading import Thread
 
 import pyautogui
@@ -359,10 +360,14 @@ class PlayCtrl:
 
     def __init__(self):
         self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
 
     def play(self, capture, toggle_button):
         """Play the loaded capture."""
-        exec(capture)
+        for line in capture:
+            if self.play_thread.ended():
+                return
+            exec(line)
         btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
         btn_event.EventObject = toggle_button
         if self.count <= 0 and not self.infinite:
@@ -380,21 +385,17 @@ class PlayCtrl:
                 toggle_button.Value = False
                 return
             with open(TMP_PATH, 'r') as f:
-                capture = f.read()
-            if capture == HEADER:
-                wx.LogError("Empty capture")
-                toggle_button.Value = False
-                return
+                capture = f.readlines()
             if self.count > 0 or self.infinite:
                 self.count = self.count - 1 if not self.infinite else self.count
-                self.play_thread = Thread()
+                self.play_thread = PlayThread()
                 self.play_thread.daemon = True
-                self.play_thread = Thread(target=self.play,
+                self.play_thread = PlayThread(target=self.play,
                                           args=(capture, toggle_button,))
                 self.play_thread.start()
         else:
+            self.play_thread.end()
             self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-            self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
             settings.save_config()
 
 
@@ -516,3 +517,14 @@ class HelpCtrl:
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
 
+class PlayThread(Thread):
+    """Thread with an end method triggered by a click on the Toggle button."""
+    def __init__(self, *args, **kwargs):
+        super(PlayThread, self).__init__(*args, **kwargs)
+        self._end = Event()
+
+    def end(self):
+        self._end.set()
+
+    def ended(self):
+        return self._end.isSet()
