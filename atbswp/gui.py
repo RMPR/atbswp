@@ -308,11 +308,11 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         """About dialog."""
         info = wx.adv.AboutDialogInfo()
         info.Name = "atbswp"
-        info.Version = "v0.1"
-        info.Copyright = ("(C) 2019 Mairo Paul Rufus <github@rmpr.xyz>\n")
+        info.Version = f"{settings.VERSION}"
+        info.Copyright = (f"©{settings.YEAR} Mairo Rufus <github@rmpr.xyz>\n")
         info.Description = "Record mouse and keyboard actions and reproduce them identically at will"
         info.WebSite = ("https://github.com/atbswp", "Project homepage")
-        info.Developers = ["Mairo Paul Rufus"]
+        info.Developers = ["Mairo Rufus"]
         info.License = "GNU General Public License V3"
         info.Icon = self.icon
         wx.adv.AboutBox(info)

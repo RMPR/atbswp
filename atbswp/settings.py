@@ -20,9 +20,12 @@
 import configparser
 import os
 import platform
+from datetime import date
 
 
 CONFIG = configparser.ConfigParser()
+VERSION = "0.2"
+YEAR = date.today().strftime('%Y')
 
 
 # Check the location of the configuration file, default to the home directory
