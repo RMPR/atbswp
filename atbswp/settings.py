@@ -25,7 +25,7 @@ from datetime import date
 
 CONFIG = configparser.ConfigParser()
 VERSION = "0.2"
-YEAR = date.today().strftime('%Y')
+YEAR = date.today().strftime("%Y")
 
 
 # Check the location of the configuration file, default to the home directory
@@ -44,16 +44,18 @@ def save_config():
     with open(config_location, "w") as config_file:
         CONFIG.write(config_file)
 
+
 try:
     with open(config_location) as config_file:
         CONFIG.read(config_location)
 except:
-    CONFIG['DEFAULT'] = {'Fast Play Speed': False,
-                         'Infinite Playback': False,
-                         'Repeat Count': 1,
-                         'Recording Hotkey': 348,
-                         'Playback Hotkey': 349,
-                         'Always On Top': True,
-                         'Language': 'en',
-                         'Recording Timer': 0}
-
+    CONFIG["DEFAULT"] = {
+        "Fast Play Speed": False,
+        "Infinite Playback": False,
+        "Repeat Count": 1,
+        "Recording Hotkey": 348,
+        "Playback Hotkey": 349,
+        "Always On Top": True,
+        "Language": "en",
+        "Recording Timer": 0,
+    }
