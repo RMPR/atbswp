@@ -173,6 +173,12 @@ class RecordCtrl:
         LOOKUP_SPECIAL_KEY[keyboard.Key.print_screen] = 'print_screen'
         LOOKUP_SPECIAL_KEY[keyboard.Key.scroll_lock] = 'scroll_lock'
 
+    def _add_capture(self, capture):
+        self._capture.append(capture)
+
+    def _set_capture(self, capture, index):
+        self._capture[index] = capture
+
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         """Append a new mouse move to capture.
 
@@ -195,7 +201,7 @@ class RecordCtrl:
                 return
             else:
                 self._lastx, self._lasty = coordinates
-        self._capture.append(engine + "." + move + '(' + parameters + ')')
+        self._add_capture(engine + "." + move + '(' + parameters + ')')
 
     def write_keyboard_action(self, engine="pyautogui", move="", key=""):
         """Append keyboard actions to the class variable capture.
@@ -210,8 +216,8 @@ class RecordCtrl:
             # Corner case: Multiple successive keyDown
             if move + suffix in self._capture[-1]:
                 move = 'press'
-                self._capture[-1] = engine + "." + move + suffix
-        self._capture.append(engine + "." + move + suffix)
+                self._set_capture(engine + "." + move + suffix, -1)
+        self._add_capture(engine + "." + move + suffix)
 
     def on_move(self, x, y):
         """Triggered by a mouse move."""
@@ -220,7 +226,7 @@ class RecordCtrl:
         b = time.perf_counter()
         timeout = int(b - self.last_time)
         if timeout > 0:
-            self._capture.append(f"time.sleep({timeout})")
+            self._add_capture(f"time.sleep({timeout})")
         self.last_time = b
         self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
 
@@ -260,7 +266,7 @@ class RecordCtrl:
         b = time.perf_counter()
         timeout = int(b - self.last_time)
         if timeout > 0:
-            self._capture.append(f"time.sleep({timeout})")
+            self._add_capture(f"time.sleep({timeout})")
         self.last_time = b
 
         try:
@@ -401,7 +407,7 @@ class PlayCtrl:
             else:
                 path = os.path.join(Path(__file__).parent.absolute(), 'atbswp.py')
             settings.save_config()
-            os.execl(path)
+            os.execl(path, *sys.argv)
 
 
 class CompileCtrl:
