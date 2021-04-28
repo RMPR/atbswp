@@ -39,16 +39,31 @@ import wx
 import wx.adv
 
 
-TMP_PATH = os.path.join(tempfile.gettempdir(),
-                        "atbswp-" + date.today().strftime("%Y%m%d"))
-HEADER = (
-            f"#!/bin/env python3\n"
-            f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
-            f"# on {date.today().strftime('%d %b %Y ')}\n"
-            f"import pyautogui\n"
-            f"import time\n"
-            f"pyautogui.FAILSAFE = False\n"
-        )
+TMP_PATH = str(Path(__file__).parent.absolute()) + '/temp.py'
+#TMP_PATH = os.path.join(tempfile.gettempdir(),
+#                        "atbswp-" + date.today().strftime("%Y%m%d"))
+HEADER = f"""
+#!/bin/env python3
+# Created by atbswp (https://github.com/rmpr/atbswp)
+# on {date.today().strftime('%d %b %Y')}
+import pyautogui
+import time
+pyautogui.FAILSAFE = False
+
+
+def exec_captured(stop_flag : list):
+    for move in movements:
+        if stop_flag[0]: break
+        eval(move)
+
+
+movements= [
+"""
+
+FOOTER ="""
+    ]
+
+"""
 
 LOOKUP_SPECIAL_KEY = {}
 
@@ -118,10 +133,8 @@ class RecordCtrl:
 
     def __init__(self):
         """Initialize a new record."""
-        self._header = HEADER
         self._error = "### This key is not supported yet"
-
-        self._capture = [self._header]
+        self._capture = [HEADER]
         self._lastx, self._lasty = pyautogui.position()
         self.mouse_sensibility = 21
         if getattr(sys, 'frozen', False):
@@ -174,10 +187,10 @@ class RecordCtrl:
         LOOKUP_SPECIAL_KEY[keyboard.Key.scroll_lock] = 'scroll_lock'
 
     def _add_capture(self, capture):
-        self._capture.append(capture)
+        self._capture.append('"' + capture + '",')
 
     def _set_capture(self, capture, index):
-        self._capture[index] = capture
+        self._capture[index] = '\'' + capture + '\','
 
     def write_mouse_action(self, engine="pyautogui", move="", parameters=""):
         """Append a new mouse move to capture.
@@ -343,8 +356,9 @@ class RecordCtrl:
                     self._capture.pop()
                 f.seek(0)
                 f.write("\n".join(self._capture))
+                f.write(FOOTER)
                 f.truncate()
-            self._capture = [self._header]
+            self._capture = [HEADER]
             recording_state = wx.Icon(os.path.join(self.path, "img", "icon.png"))
         event.GetEventObject().GetParent().taskbar.SetIcon(recording_state)
 
@@ -363,44 +377,68 @@ class PlayCtrl:
 
     global TMP_PATH
 
-    def play(self, capture, toggle_button):
+    def __init__(self):
+        self.count = 1
+        self.capture = None
+        self.infinite = False
+        self._stop_flag = [True, True]  # run, infinite
+        self.play_thread = None
+        self.infinite_thread = None
+
+    def start_play_thread(self, toggle_button, join=True):
+        self._stop_flag[0] = False
+        self.play_thread = Thread(target=self.play,
+                                  args=(toggle_button,))
+        self.play_thread.start()
+        if join:
+            self.play_thread.join()
+
+    def start_infinite_play_thread(self, toggle_button, join=True):
+        self._stop_flag[1] = False
+        self.infinite_thread = Thread(target=self.play_infinite, args=(toggle_button,))
+        self.infinite_thread.start()
+
+    def play(self, toggle_button):
         """Play the loaded capture."""
+        import temp
         toggle_button.Value = True
-        exec(capture)
+        temp.exec_captured(self._stop_flag)
+        self._stop_flag[0] = True
         toggle_button.Value = False
+
+    def play_infinite(self, toggle_button):
+        i = 1
+        while (i <= self.count or self.infinite) and \
+                not self._stop_flag[1]:
+            self.start_play_thread(toggle_button)
+            i += 1
+        self._stop_flag[1] = True
 
     def action(self, event):
         """Replay a `count` number of time."""
         toggle_button = event.GetEventObject()
         toggle_button.Parent.panel.SetFocus()
-        count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
                 toggle_button.Value = False
                 return
             with open(TMP_PATH, 'r') as f:
-                capture = f.read()
-            if capture == HEADER:
+                self.capture = f.read()
+            if self.capture == HEADER + FOOTER:
                 wx.LogError("Empty capture")
                 toggle_button.Value = False
                 return
-            if count == 1 and not infinite:
-                self.play_thread = Thread()
-                self.play_thread.daemon = True
-                self.play_thread = Thread(target=self.play,
-                                          args=(capture, toggle_button,))
-                self.play_thread.start()
-            else:
-                i = 1
-                while i <= count or infinite:
-                    self.play_thread = Thread()
-                    self.play_thread = Thread(target=self.play,
-                                              args=(capture, toggle_button,))
-                    self.play_thread.start()
-                    self.play_thread.join()
-                    i += 1
+            if self._stop_flag[0]:
+                if self.count == 1 and not self.infinite:
+                    self.start_play_thread(toggle_button, join=False)
+                else:
+                    self.start_infinite_play_thread(toggle_button, join=False)
+            else: # play button pressed after play start
+                self._stop_flag[0] = True
+                self._stop_flag[1] = True
         else:
             if getattr(sys, 'frozen', False):
                 path = os.path.join(Path(__file__).parent.absolute(), 'atbswp')
