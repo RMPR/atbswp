@@ -361,6 +361,7 @@ class PlayCtrl:
     def __init__(self):
         self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.count_was_updated = False
 
     def play(self, capture, toggle_button):
         """Play the loaded capture."""
@@ -380,6 +381,9 @@ class PlayCtrl:
         toggle_button.Parent.panel.SetFocus()
         self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
+            if not self.count_was_updated:
+                self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+                self.count_was_updated = True
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
                 toggle_button.Value = False
@@ -395,7 +399,7 @@ class PlayCtrl:
                 self.play_thread.start()
         else:
             self.play_thread.end()
-            self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+            self.count_was_updated = False
             settings.save_config()
 
 
