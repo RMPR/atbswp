@@ -4,6 +4,14 @@
 Literally Automate the boring stuff with Python, allows the user to record his mouse and keyboard 
 actions and reproduce them identically as many times as he wants.
 
+# Use cases
+I've mainly used it to automate gold/point/XP farming in games, I think this can also be used to:
+
+- Automate a demo during a conference for example
+- Automate UAT in the devops process (as long as you're making something with a GUI).
+
+If you use it for something really cool you can always reach me at github (at) rmpr (dot) xyz or drop
+a PR :). Bonus points if you have a demo video.
 
 # Install instructions
 
@@ -47,27 +55,18 @@ python atbswp\atbswp.py
 
 ![atbswp quick demo](demo/demo.gif)
 
-# Use cases
-I've mainly used it to automate gold/point/XP farming in games, I think this can also be used to:
-
-- Automate a demo during a conference for example
-- Automate UAT in the devops process (as long as you're making something with a GUI).
-
-If you use it for something really cool you can always reach me at github (at) rmpr (dot) xyz or drop
-a PR :). Bonus points if you have a demo video.
 
 # Donate
 <a href="https://www.buymeacoffee.com/rmpr" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-black.png" width="150" alt="Buy me a coffee"></a>
 
-If you found this helpful in any way.
-
+If you found this helpful.
 
 # Contributions
 Contributions are welcomed, see [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 # Known issues
 On Linux, this only works with Xorg, with wayland support coming soon, for now you have to
-enable Xorg. 
+enable Xorg.
 
 ```
 sudo sed 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm/custom.conf -i # on Gnome
