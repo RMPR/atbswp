@@ -256,8 +256,6 @@ class RecordCtrl:
 
     def on_press(self, key):
         """Triggered by a key press."""
-        if not self.recording:
-            return False
         b = time.perf_counter()
         timeout = int(b - self.last_time)
         if timeout > 0:
@@ -333,9 +331,7 @@ class RecordCtrl:
             with open(TMP_PATH, 'w') as f:
                 # Remove the recording trigger event
                 self._capture.pop()
-                # If it's the mouse remove the previous also
-                if "mouseDown" in self._capture[-1]:
-                    self._capture.pop()
+                self._capture.pop()
                 f.seek(0)
                 f.write("\n".join(self._capture))
                 f.truncate()
@@ -345,7 +341,6 @@ class RecordCtrl:
 
     def update_timer(self, event):
         """Check if it's the time to start to record"""
-        print(self.timer)
         if self.timer <= 0:
             self.wx_timer.Stop()
             self.countdown_dialog.Destroy()
