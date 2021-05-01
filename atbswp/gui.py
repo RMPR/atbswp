@@ -158,6 +158,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                                                  wx.ID_ANY,
                                                  wx.Bitmap(os.path.join(self.path, "img", "play-circle.png"),
                                                            wx.BITMAP_TYPE_ANY))
+        self.remaining_plays = wx.StaticText(self, label=settings.CONFIG.get("DEFAULT", "Repeat Count"),
+                                                style=wx.ALIGN_CENTRE_HORIZONTAL)
         self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
@@ -228,6 +230,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.help_button.SetSize(self.help_button.GetBestSize())
 
     def __do_layout(self):
+        self.remaining_plays.Position = (256, 0)
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         main_sizer.Add(self.panel)
         main_sizer.Add(self.file_open_button, 0, 0, 0)
