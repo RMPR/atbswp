@@ -24,8 +24,8 @@ from [here](https://github.com/rmpr/atbswp/releases)
 
 Fedora
 ```shell
+sudo dnf install python3-wxpython4 python3-xlib python3-tkinter
 git clone https://github.com/RMPR/atbswp.git && cd atbswp
-sudo dnf install python3-wxpython4
 make prepare-dev
 make run
 ```
