@@ -191,8 +191,8 @@ class RecordCtrl:
 
         if move == "moveTo":
             coordinates = [int(s) for s in parameters.split(", ") if isinteger(s)]
-            if coordinates[0] - self._lastx < self.mouse_sensibility \
-               and coordinates[1] - self._lasty < self.mouse_sensibility:
+            if abs(coordinates[0] - self._lastx) < self.mouse_sensibility \
+               and abs(coordinates[1] - self._lasty) < self.mouse_sensibility:
                 return
             else:
                 self._lastx, self._lasty = coordinates
