@@ -19,6 +19,7 @@
 
 import wx
 
+
 class SliderDialog(wx.Dialog):
     """Wrap a slider in a dialog and get the value"""
 
@@ -65,27 +66,3 @@ class SliderDialog(wx.Dialog):
     def value(self, value):
         """Setter."""
         self._value = value
-
-
-class CountdownDialog(wx.Dialog):
-    """Display a dialog with a countdown"""
-
-    def __init__(self, *args, **kwargs):
-        self._countdown = kwargs.pop("countdown", 0)
-        super(CountdownDialog, self).__init__(*args, **kwargs)
-        self.init_ui()
-
-    def init_ui(self):
-        self.pnl = wx.Panel(self)
-        self.sizer = wx.BoxSizer(orient=wx.HORIZONTAL)
-        message = wx.StaticText(self, label=f"The recording will start in {self._countdown} seconds")
-        self.sizer.Add(message)
-        self.pnl.SetSizer(self.sizer)
-        self.sizer.Fit(self)
-
-    def update_ui(self):
-        self._countdown -= 1
-        self.sizer.Clear(True)
-        message = wx.StaticText(self, label=f"The recording will start in {self._countdown} seconds")
-        self.sizer.Add(message)
-        return self._countdown
