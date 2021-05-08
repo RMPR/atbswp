@@ -203,7 +203,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_TOGGLEBUTTON, self.rbc.action, self.record_button)
 
         # play_button_ctrl
-        self.pbc = control.PlayInterface()
+        self.pbc = control.PlayGui()
         self.Bind(wx.EVT_TOGGLEBUTTON, self.pbc.action, self.play_button)
 
         # compile_button_ctrl
@@ -263,13 +263,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                 self.rbc.action(btn_event)
 
         elif keycode == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
-            if not self.play_button.Value:
-                self.play_button.Value = True
-                btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
-                btn_event.EventObject = self.play_button
-                self.pbc.action(btn_event)
-            else:
-                self.play_button.Value = False
+            self.play_button.Value = not self.play_button.Value
+            btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
+            btn_event.EventObject = self.play_button
+            self.pbc.action(btn_event)
 
         elif keycode == ord("R") and event.CmdDown():
             menu_event = wx.CommandEvent(wx.wxEVT_MENU)

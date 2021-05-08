@@ -405,7 +405,7 @@ class PlayControl:
         self._stop_locks[0] = True
 
 
-class PlayInterface:
+class PlayGui:
     def __init__(self):
         self.play_ctrl = PlayControl()
         self.capture = None
@@ -444,56 +444,6 @@ class PlayInterface:
                 self.play_ctrl.play(self.capture, self._stop)
         else:
             self._stop()
-
-
-class PlayCtrl:
-    """Control class for the play button."""
-
-    global TMP_PATH
-
-    def __init__(self):
-        self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
-        self.count_was_updated = False
-
-    def play(self, capture, toggle_button):
-        """Play the loaded capture."""
-        for line in capture:
-            if self.play_thread.ended():
-                return
-            exec(line)
-        btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
-        btn_event.EventObject = toggle_button
-        if self.count <= 0 and not self.infinite:
-            toggle_button.Value = False
-        self.action(btn_event)
-
-    def action(self, event):
-        """Replay a `count` number of time."""
-        toggle_button = event.GetEventObject()
-        toggle_button.Parent.panel.SetFocus()
-        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
-        if toggle_button.Value:
-            if not self.count_was_updated:
-                self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-                self.count_was_updated = True
-            if TMP_PATH is None or not os.path.isfile(TMP_PATH):
-                wx.LogError("No capture loaded")
-                toggle_button.Value = False
-                return
-            with open(TMP_PATH, 'r') as f:
-                capture = f.readlines()
-            if self.count > 0 or self.infinite:
-                self.count = self.count - 1 if not self.infinite else self.count
-                self.play_thread = PlayThread()
-                self.play_thread.daemon = True
-                self.play_thread = PlayThread(target=self.play,
-                                          args=(capture, toggle_button,))
-                self.play_thread.start()
-        else:
-            self.play_thread.end()
-            self.count_was_updated = False
-            settings.save_config()
 
 
 class CompileCtrl:
