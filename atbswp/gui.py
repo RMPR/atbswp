@@ -203,7 +203,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_TOGGLEBUTTON, self.rbc.action, self.record_button)
 
         # play_button_ctrl
-        self.pbc = control.PlayCtrl()
+        self.pbc = control.PlayInterface()
         self.Bind(wx.EVT_TOGGLEBUTTON, self.pbc.action, self.play_button)
 
         # compile_button_ctrl
