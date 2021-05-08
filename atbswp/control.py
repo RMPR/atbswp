@@ -45,7 +45,8 @@ TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%d"))
 HEADER = (
             f"#!/bin/env python3\n"
-            f"# Created by atbswp (https://github.com/rmpr/atbswp)\n"
+            f"# Created by atbswp v{settings.VERSION} "
+            f"(https://git.sr.ht/~rmpr/atbswp)\n"
             f"# on {date.today().strftime('%d %b %Y ')}\n"
             f"import pyautogui\n"
             f"import time\n"
