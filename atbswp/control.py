@@ -34,7 +34,7 @@ from pynput import keyboard, mouse
 
 import settings
 
-from custom_widgets import SliderDialog, CountdownDialog
+from custom_widgets import SliderDialog
 
 import wx
 import wx.adv
@@ -315,11 +315,14 @@ class RecordCtrl:
         except:
             self.timer = 0
 
-        if event.GetEventObject().GetValue():
+        if event.EventObject.Value:
             if self.timer > 0:
-                self.countdown_dialog = CountdownDialog(None, title="Wait for the recording to start", countdown=self.timer)
+                self.countdown_dialog = wx.ProgressDialog(title="Wait for the recording to start",
+                        message=f"The recording will start in {self.timer} second(s)",
+                        style=wx.PD_APP_MODAL)
+                self.countdown_dialog.Range = self.timer
                 self.wx_timer = wx.Timer(event.GetEventObject())
-                event.GetEventObject().Bind(wx.EVT_TIMER, self.update_timer, self.wx_timer)
+                event.EventObject.Bind(wx.EVT_TIMER, self.update_timer, self.wx_timer)
                 self.wx_timer.Start(1000)
                 self.countdown_dialog.ShowModal()
 
@@ -347,7 +350,9 @@ class RecordCtrl:
             self.wx_timer.Stop()
             self.countdown_dialog.Destroy()
         else:
-            self.timer = self.countdown_dialog.update_ui()
+            time.sleep(1)
+            self.timer -= 1
+            self.countdown_dialog.Update(self.timer, f"The recording will start in {self.timer} second(s)")
 
 
 class PlayCtrl:
