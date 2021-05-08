@@ -348,6 +348,104 @@ class RecordCtrl:
             self.timer = self.countdown_dialog.update_ui()
 
 
+class PlayControl:
+    """Control class for playback functionality"""
+
+    def __init__(self, count=1, infinite=False):
+        self.count = count
+        self.infinite = infinite
+        self._stop_locks = [True]
+        self._current_count = 0
+        self._play_thread = None
+
+    def _play(self, capture, append_function=None):
+        for line in capture:
+            if self.is_stoped(): break
+            exec(line)
+        self._current_count += 1
+        if self._current_count < self.count or self.infinite \
+                and not self.is_stoped():
+            self._play(capture, append_function)
+        else:
+            self.stop()
+            if append_function:
+                append_function()
+
+    def _start_thread(self, target, *args, daemon=False):
+        thread = Thread(target=target, args=(*args,))
+        thread.daemon = daemon
+        thread.start()
+        return thread
+
+    def set_config(self, count, infinite):
+        """Set the configuration to the next playback"""
+        self.count = count
+        self.infinite = infinite
+
+    def get_current_count(self):
+        """Returns the current playback time"""
+        return self._current_count
+
+    def is_stoped(self):
+        return self._stop_locks[0]
+
+    def play(self, capture, append_function=None):
+        """Starts playback according with configs setted
+
+            :param capture: list of commands to be executed
+            :param append_function: a function to be executed after
+             a playback
+        """
+        self._stop_locks[0] = False
+        self._current_count = 0
+        self._play_thread = self._start_thread(self._play, capture,
+                                                append_function)
+
+    def stop(self):
+        self._stop_locks[0] = True
+
+
+class PlayInterface:
+    def __init__(self):
+        self.play_ctrl = PlayControl()
+        self.capture = None
+        self._config_was_updated = False
+        self._toggle_button = None
+
+    def _load_capture_file(self):
+        if TMP_PATH is None or not os.path.isfile(TMP_PATH):
+            wx.LogError("No capture loaded")
+            self._toggle_button.Value = False
+            return False
+        with open(TMP_PATH, 'r') as f:
+            self.capture = f.readlines()
+            return True
+
+    def _set_config(self):
+        if self._config_was_updated: return
+        count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
+        infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.play_ctrl.set_config(count, infinite)
+        self._config_was_updated = False
+
+    def _stop(self):
+        self._toggle_button.Value = False
+        self.play_ctrl.stop()
+        self._config_was_updated = False
+        settings.save_config()
+
+    def action(self, event):
+        self._toggle_button = event.GetEventObject()
+        self._toggle_button.Parent.panel.SetFocus()
+        if self._toggle_button.Value:
+            if self.play_ctrl.is_stoped():
+                if not self._load_capture_file(): return
+                self._set_config()
+                self.play_ctrl.play(self.capture, self._stop)
+        else:
+            self._stop()
+
+
 class PlayCtrl:
     """Control class for the play button."""
 
@@ -527,3 +625,5 @@ class PlayThread(Thread):
 
     def ended(self):
         return self._end.isSet()
+
+
