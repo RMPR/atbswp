@@ -294,9 +294,9 @@ class RecordCtrl:
         except:
             current_value = 0
 
-        dialog = SliderDialog(None, title="Choose an amount of time (seconds)", size=(500, 50), default_value=current_value)
+        dialog = wx.NumberEntryDialog(None, message="Choose an amount of time (seconds)", prompt="", caption="Recording Timer", value=current_value, min=0, max=999)
         dialog.ShowModal()
-        new_value = dialog.value
+        new_value = dialog.Value
         dialog.Destroy()
         settings.CONFIG['DEFAULT']['Recording Timer'] = str(new_value)
 
@@ -319,7 +319,7 @@ class RecordCtrl:
             if self.timer > 0:
                 self.countdown_dialog = wx.ProgressDialog(title="Wait for the recording to start",
                         message=f"The recording will start in {self.timer} second(s)",
-                        style=wx.PD_APP_MODAL)
+                        style=wx.PD_APP_MODAL | wx.PD_CAN_SKIP | wx.PD_SMOOTH)
                 self.countdown_dialog.Range = self.timer
                 self.wx_timer = wx.Timer(event.GetEventObject())
                 event.EventObject.Bind(wx.EVT_TIMER, self.update_timer, self.wx_timer)
@@ -346,7 +346,7 @@ class RecordCtrl:
 
     def update_timer(self, event):
         """Check if it's the time to start to record"""
-        if self.timer <= 0:
+        if self.timer <= 0 or self.countdown_dialog.WasSkipped():
             self.wx_timer.Stop()
             self.countdown_dialog.Destroy()
         else:
