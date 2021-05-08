@@ -65,9 +65,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   control.SettingsCtrl.infinite_playback,
                   cp)
 
+        sc = control.SettingsCtrl(self)
         # Repeat count
-        self.Bind(wx.EVT_MENU,
-                  control.SettingsCtrl.repeat_count,
+        self.Bind(wx.EVT_MENU, sc.repeat_count,
                   menu.Append(wx.ID_ANY, self.settings_text[2]))
         menu.AppendSeparator()
 
@@ -86,7 +86,6 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         aot = menu.AppendCheckItem(wx.ID_ANY, self.settings_text[5])
         status = settings.CONFIG.getboolean('DEFAULT', 'Always On Top')
         aot.Check(status)
-        sc = control.SettingsCtrl(self)
         self.Bind(wx.EVT_MENU,
                   sc.always_on_top,
                   aot)
@@ -206,6 +205,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.pbc = control.PlayCtrl()
         self.Bind(wx.EVT_TOGGLEBUTTON, self.pbc.action, self.play_button)
 
+        # Handle the event returned after a playback has completed
+        self.Bind(self.pbc.EVT_THREAD_END, self.on_thread_end)
+
         # compile_button_ctrl
         self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile, self.compile_button)
 
@@ -217,7 +219,9 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
 
+        # Handle keyboard shortcuts
         self.panel.Bind(wx.EVT_KEY_UP, self.on_key_press)
+
         self.panel.SetFocus()
 
     def __set_properties(self):
@@ -287,6 +291,12 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         event.Skip()
 
+    def on_thread_end(self, event):
+        self.play_button.Value = event.toggle_value
+        self.remaining_plays.Label = str(event.count) if event.count > 0 else \
+                str(settings.CONFIG.getint('DEFAULT', 'Repeat Count'))
+        self.remaining_plays.Update()
+
     def on_exit_app(self, event):
         """Clean exit saving the settings."""
         settings.save_config()
@@ -327,5 +337,4 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):
         self.parent = parent
         super(TaskBarIcon, self).__init__()
-
 

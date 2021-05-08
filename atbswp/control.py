@@ -38,6 +38,7 @@ from custom_widgets import SliderDialog, CountdownDialog
 
 import wx
 import wx.adv
+import wx.lib.newevent as NE
 
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
@@ -357,17 +358,23 @@ class PlayCtrl:
         self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         self.count_was_updated = False
+        self.ThreadEndEvent, self.EVT_THREAD_END = NE.NewEvent()
 
     def play(self, capture, toggle_button):
         """Play the loaded capture."""
+        toggle_value = True
         for line in capture:
             if self.play_thread.ended():
                 return
             exec(line)
+
+        if self.count <= 0 and not self.infinite:
+            toggle_value = False
+        event = self.ThreadEndEvent(count=self.count, toggle_value=toggle_value)
+        wx.PostEvent(toggle_button.Parent, event)
+
         btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
         btn_event.EventObject = toggle_button
-        if self.count <= 0 and not self.infinite:
-            toggle_button.Value = False
         self.action(btn_event)
 
     def action(self, event):
@@ -381,7 +388,8 @@ class PlayCtrl:
                 self.count_was_updated = True
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
-                toggle_button.Value = False
+                event = self.ThreadEndEvent(count=self.count, toggle_value=False)
+                wx.PostEvent(toggle_button.Parent, event)
                 return
             with open(TMP_PATH, 'r') as f:
                 capture = f.readlines()
@@ -449,15 +457,15 @@ class SettingsCtrl:
         current_value = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
         settings.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
 
-    @staticmethod
-    def repeat_count(event):
+    def repeat_count(self, event):
         """Set the repeat count."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
         dialog = wx.NumberEntryDialog(None, message="Choose a repeat count", prompt="", caption="Repeat Count", value=current_value, min=1, max=999)
         dialog.ShowModal()
-        new_value = dialog.Value
+        new_value = str(dialog.Value)
         dialog.Destroy()
-        settings.CONFIG['DEFAULT']['Repeat Count'] = str(new_value)
+        settings.CONFIG['DEFAULT']['Repeat Count'] = new_value
+        self.main_dialog.remaining_plays.Label = new_value
 
     @staticmethod
     def recording_hotkey(event):
@@ -515,6 +523,7 @@ class HelpCtrl:
         """Open the browser on the quick demo of atbswp"""
         url = "https://youtu.be/L0jjSgX5FYk"
         wx.LaunchDefaultBrowser(url, flags=0)
+
 
 class PlayThread(Thread):
     """Thread with an end method triggered by a click on the Toggle button."""
