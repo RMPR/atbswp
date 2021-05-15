@@ -24,7 +24,7 @@ from datetime import date
 
 
 CONFIG = configparser.ConfigParser()
-VERSION = "0.2"
+VERSION = "0.3.0"
 YEAR = date.today().strftime("%Y")
 
 
