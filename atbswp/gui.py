@@ -235,6 +235,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     def __do_layout(self):
         self.remaining_plays.Position = (256, 0)
+        self.remaining_plays.SetBackgroundColour((0, 0, 0))
+        self.remaining_plays.SetForegroundColour((255, 255, 255))
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         main_sizer.Add(self.panel)
         main_sizer.Add(self.file_open_button, 0, 0, 0)
