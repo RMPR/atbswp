@@ -65,9 +65,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                   control.SettingsCtrl.infinite_playback,
                   cp)
 
-        sc = control.SettingsCtrl(self)
         # Repeat count
-        self.Bind(wx.EVT_MENU, sc.repeat_count,
+        self.Bind(wx.EVT_MENU, self.sc.repeat_count,
                   menu.Append(wx.ID_ANY, self.settings_text[2]))
         menu.AppendSeparator()
 
@@ -87,7 +86,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         status = settings.CONFIG.getboolean('DEFAULT', 'Always On Top')
         aot.Check(status)
         self.Bind(wx.EVT_MENU,
-                  sc.always_on_top,
+                  self.sc.always_on_top,
                   aot)
 
         # Language
@@ -102,7 +101,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         for language in os.listdir(os.path.join(self.path, "lang")):
             lang_item = submenu.AppendRadioItem(wx.ID_ANY, language)
             self.Bind(wx.EVT_MENU,
-                      sc.language,
+                      self.sc.language,
                       lang_item)
             if language == current_lang:
                 lang_item.Check(True)
@@ -216,6 +215,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         # settings_button_ctrl
         self.Bind(wx.EVT_BUTTON, self.on_settings_click, self.settings_button)
+        self.sc = control.SettingsCtrl(self)
 
         self.Bind(wx.EVT_CLOSE, self.on_close_dialog)
 
@@ -279,7 +279,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
         elif keycode == ord("R") and event.CmdDown():
             menu_event = wx.CommandEvent(wx.wxEVT_MENU)
-            control.SettingsCtrl.repeat_count(menu_event)
+            self.sc.repeat_count(menu_event)
 
         elif keycode == ord("O") and event.CmdDown():
             btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
