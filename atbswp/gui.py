@@ -37,7 +37,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
 
     app_text = ["Load Capture", "Save", "Start/Stop Capture", "Play", "Compile to executable",
                 "Preferences", "Help"]
-    settings_text = ["Play &Speed: Fast", "&Infinite Playback", "Set &Repeat Count", "Recording &Hotkey", 
+    settings_text = ["Play &Speed: Fast", "&Infinite Playback", "Set &Repeat Count", "Recording &Hotkey",
                      "&Playback Hotkey", "Always on &Top", "&Language", "&About", "&Exit"]
 
     def on_settings_click(self, event):
@@ -126,7 +126,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
             self.path = Path(__file__).parent.absolute()
         on_top = wx.DEFAULT_DIALOG_STYLE
         on_top = on_top if not settings.CONFIG.getboolean('DEFAULT', 'Always On Top') \
-                        else on_top | wx.STAY_ON_TOP
+            else on_top | wx.STAY_ON_TOP
         kwds["style"] = kwds.get("style", 0) | on_top
         wx.Dialog.__init__(self, *args, **kwds)
         self.panel = wx.Panel(self)
@@ -157,7 +157,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
                                                  wx.Bitmap(os.path.join(self.path, "img", "play-circle.png"),
                                                            wx.BITMAP_TYPE_ANY))
         self.remaining_plays = wx.StaticText(self, label=settings.CONFIG.get("DEFAULT", "Repeat Count"),
-                                                style=wx.ALIGN_CENTRE_HORIZONTAL)
+                                             style=wx.ALIGN_CENTRE_HORIZONTAL)
         self.play_button.SetToolTip(self.app_text[3])
         self.compile_button = wx.BitmapButton(self,
                                               wx.ID_ANY,
@@ -184,7 +184,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         """Load the interface in user-defined language (default english)."""
         try:
             lang = settings.CONFIG.get('DEFAULT', 'Language')
-            locale = open(os.path.join(self.path, "lang", lang)).read().splitlines()
+            locale = open(os.path.join(self.path, "lang", lang)
+                          ).read().splitlines()
         except:
             return self.app_text + self.settings_text
 
@@ -208,7 +209,8 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(self.pbc.EVT_THREAD_END, self.on_thread_end)
 
         # compile_button_ctrl
-        self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile, self.compile_button)
+        self.Bind(wx.EVT_BUTTON, control.CompileCtrl.compile,
+                  self.compile_button)
 
         # help_button_ctrl
         self.Bind(wx.EVT_BUTTON, control.HelpCtrl.action, self.help_button)
@@ -296,7 +298,7 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
     def on_thread_end(self, event):
         self.play_button.Value = event.toggle_value
         self.remaining_plays.Label = str(event.count) if event.count > 0 else \
-                str(settings.CONFIG.getint('DEFAULT', 'Repeat Count'))
+            str(settings.CONFIG.getint('DEFAULT', 'Repeat Count'))
         self.remaining_plays.Update()
 
     def on_exit_app(self, event):
@@ -339,4 +341,3 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):
         self.parent = parent
         super(TaskBarIcon, self).__init__()
-

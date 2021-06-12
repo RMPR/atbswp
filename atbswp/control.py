@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
-import platform
 import py_compile
 import shutil
 import sys
@@ -44,14 +43,14 @@ import wx.lib.newevent as NE
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%d"))
 HEADER = (
-            f"#!/bin/env python3\n"
-            f"# Created by atbswp v{settings.VERSION} "
-            f"(https://git.sr.ht/~rmpr/atbswp)\n"
-            f"# on {date.today().strftime('%d %b %Y ')}\n"
-            f"import pyautogui\n"
-            f"import time\n"
-            f"pyautogui.FAILSAFE = False\n"
-        )
+    f"#!/bin/env python3\n"
+    f"# Created by atbswp v{settings.VERSION} "
+    f"(https://git.sr.ht/~rmpr/atbswp)\n"
+    f"# on {date.today().strftime('%d %b %Y ')}\n"
+    f"import pyautogui\n"
+    f"import time\n"
+    f"pyautogui.FAILSAFE = False\n"
+)
 
 LOOKUP_SPECIAL_KEY = {}
 
@@ -192,7 +191,8 @@ class RecordCtrl:
                 return False
 
         if move == "moveTo":
-            coordinates = [int(s) for s in parameters.split(", ") if isinteger(s)]
+            coordinates = [int(s)
+                           for s in parameters.split(", ") if isinteger(s)]
             if abs(coordinates[0] - self._lastx) < self.mouse_sensibility \
                and abs(coordinates[1] - self._lasty) < self.mouse_sensibility:
                 return
@@ -233,20 +233,26 @@ class RecordCtrl:
             return False
         if pressed:
             if button == mouse.Button.left:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'left'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'right'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(move="mouseDown", parameters=f"{x}, {y}, 'middle'")
+                self.write_mouse_action(
+                    move="mouseDown", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
         else:
             if button == mouse.Button.left:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'left'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'left'")
             elif button == mouse.Button.right:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'right'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'right'")
             elif button == mouse.Button.middle:
-                self.write_mouse_action(move="mouseUp", parameters=f"{x}, {y}, 'middle'")
+                self.write_mouse_action(
+                    move="mouseUp", parameters=f"{x}, {y}, 'middle'")
             else:
                 wx.LogError("Mouse Button not recognized")
 
@@ -272,7 +278,7 @@ class RecordCtrl:
         except AttributeError:
             self.write_keyboard_action(move="keyDown",
                                        key=LOOKUP_SPECIAL_KEY.get(key,
-                                       self._error))
+                                                                  self._error))
 
     def on_release(self, key):
         """Triggered by a key released."""
@@ -284,17 +290,19 @@ class RecordCtrl:
             else:
                 self.write_keyboard_action(move="keyUp",
                                            key=LOOKUP_SPECIAL_KEY.get(key,
-                                           self._error))
+                                                                      self._error))
 
     def recording_timer(event):
         """Set the recording timer."""
         # Workaround for user upgrading from a previous version
         try:
-            current_value = settings.CONFIG.getint('DEFAULT', 'Recording Timer')
+            current_value = settings.CONFIG.getint(
+                'DEFAULT', 'Recording Timer')
         except:
             current_value = 0
 
-        dialog = wx.NumberEntryDialog(None, message="Choose an amount of time (seconds)", prompt="", caption="Recording Timer", value=current_value, min=0, max=999)
+        dialog = wx.NumberEntryDialog(None, message="Choose an amount of time (seconds)",
+                                      prompt="", caption="Recording Timer", value=current_value, min=0, max=999)
         dialog.ShowModal()
         new_value = dialog.Value
         dialog.Destroy()
@@ -318,11 +326,12 @@ class RecordCtrl:
         if event.EventObject.Value:
             if self.timer > 0:
                 self.countdown_dialog = wx.ProgressDialog(title="Wait for the recording to start",
-                        message=f"The recording will start in {self.timer} second(s)",
-                        style=wx.PD_APP_MODAL | wx.PD_CAN_SKIP | wx.PD_SMOOTH)
+                                                          message=f"The recording will start in {self.timer} second(s)",
+                                                          style=wx.PD_APP_MODAL | wx.PD_CAN_SKIP | wx.PD_SMOOTH)
                 self.countdown_dialog.Range = self.timer
                 self.wx_timer = wx.Timer(event.GetEventObject())
-                event.EventObject.Bind(wx.EVT_TIMER, self.update_timer, self.wx_timer)
+                event.EventObject.Bind(
+                    wx.EVT_TIMER, self.update_timer, self.wx_timer)
                 self.wx_timer.Start(1000)
                 self.countdown_dialog.ShowModal()
 
@@ -330,7 +339,8 @@ class RecordCtrl:
             listener_mouse.start()
             self.last_time = time.perf_counter()
             self.recording = True
-            recording_state = wx.Icon(os.path.join(self.path, "img", "icon-recording.png"))
+            recording_state = wx.Icon(os.path.join(
+                self.path, "img", "icon-recording.png"))
         else:
             self.recording = False
             with open(TMP_PATH, 'w') as f:
@@ -341,7 +351,8 @@ class RecordCtrl:
                 f.write("\n".join(self._capture))
                 f.truncate()
             self._capture = [self._header]
-            recording_state = wx.Icon(os.path.join(self.path, "img", "icon.png"))
+            recording_state = wx.Icon(
+                os.path.join(self.path, "img", "icon.png"))
         event.GetEventObject().GetParent().taskbar.SetIcon(recording_state)
 
     def update_timer(self, event):
@@ -352,7 +363,8 @@ class RecordCtrl:
         else:
             time.sleep(1)
             self.timer -= 1
-            self.countdown_dialog.Update(self.timer, f"The recording will start in {self.timer} second(s)")
+            self.countdown_dialog.Update(
+                self.timer, f"The recording will start in {self.timer} second(s)")
 
 
 class PlayCtrl:
@@ -362,7 +374,8 @@ class PlayCtrl:
 
     def __init__(self):
         self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.infinite = settings.CONFIG.getboolean(
+            'DEFAULT', 'Infinite Playback')
         self.count_was_updated = False
         self.ThreadEndEvent, self.EVT_THREAD_END = NE.NewEvent()
 
@@ -376,7 +389,8 @@ class PlayCtrl:
 
         if self.count <= 0 and not self.infinite:
             toggle_value = False
-        event = self.ThreadEndEvent(count=self.count, toggle_value=toggle_value)
+        event = self.ThreadEndEvent(
+            count=self.count, toggle_value=toggle_value)
         wx.PostEvent(toggle_button.Parent, event)
 
         btn_event = wx.CommandEvent(wx.wxEVT_TOGGLEBUTTON)
@@ -387,14 +401,16 @@ class PlayCtrl:
         """Replay a `count` number of time."""
         toggle_button = event.GetEventObject()
         toggle_button.Parent.panel.SetFocus()
-        self.infinite = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
+        self.infinite = settings.CONFIG.getboolean(
+            'DEFAULT', 'Infinite Playback')
         if toggle_button.Value:
             if not self.count_was_updated:
                 self.count = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
                 self.count_was_updated = True
             if TMP_PATH is None or not os.path.isfile(TMP_PATH):
                 wx.LogError("No capture loaded")
-                event = self.ThreadEndEvent(count=self.count, toggle_value=False)
+                event = self.ThreadEndEvent(
+                    count=self.count, toggle_value=False)
                 wx.PostEvent(toggle_button.Parent, event)
                 return
             with open(TMP_PATH, 'r') as f:
@@ -404,7 +420,7 @@ class PlayCtrl:
                 self.play_thread = PlayThread()
                 self.play_thread.daemon = True
                 self.play_thread = PlayThread(target=self.play,
-                                          args=(capture, toggle_button,))
+                                              args=(capture, toggle_button,))
                 self.play_thread.start()
         else:
             self.play_thread.end()
@@ -460,13 +476,16 @@ class SettingsCtrl:
     @staticmethod
     def infinite_playback(event):
         """Toggle infinite playback."""
-        current_value = settings.CONFIG.getboolean('DEFAULT', 'Infinite Playback')
-        settings.CONFIG['DEFAULT']['Infinite Playback'] = str(not current_value)
+        current_value = settings.CONFIG.getboolean(
+            'DEFAULT', 'Infinite Playback')
+        settings.CONFIG['DEFAULT']['Infinite Playback'] = str(
+            not current_value)
 
     def repeat_count(self, event):
         """Set the repeat count."""
         current_value = settings.CONFIG.getint('DEFAULT', 'Repeat Count')
-        dialog = wx.NumberEntryDialog(None, message="Choose a repeat count", prompt="", caption="Repeat Count", value=current_value, min=1, max=999)
+        dialog = wx.NumberEntryDialog(None, message="Choose a repeat count",
+                                      prompt="", caption="Repeat Count", value=current_value, min=1, max=999)
         dialog.ShowModal()
         new_value = str(dialog.Value)
         dialog.Destroy()
@@ -482,7 +501,8 @@ class SettingsCtrl:
         dialog.ShowModal()
         new_value = dialog.value + 339
         if new_value == settings.CONFIG.getint('DEFAULT', 'Playback Hotkey'):
-            dlg = wx.MessageDialog(None, "Recording hotkey should be different from Playback one", "Error", wx.OK | wx.ICON_ERROR)
+            dlg = wx.MessageDialog(
+                None, "Recording hotkey should be different from Playback one", "Error", wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
@@ -497,7 +517,8 @@ class SettingsCtrl:
         dialog.ShowModal()
         new_value = dialog.value + 339
         if new_value == settings.CONFIG.getint('DEFAULT', 'Recording Hotkey'):
-            dlg = wx.MessageDialog(None, "Playback hotkey should be different from Recording one", "Error", wx.OK | wx.ICON_ERROR)
+            dlg = wx.MessageDialog(
+                None, "Playback hotkey should be different from Recording one", "Error", wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
         dialog.Destroy()
@@ -533,6 +554,7 @@ class HelpCtrl:
 
 class PlayThread(Thread):
     """Thread with an end method triggered by a click on the Toggle button."""
+
     def __init__(self, *args, **kwargs):
         super(PlayThread, self).__init__(*args, **kwargs)
         self._end = Event()
