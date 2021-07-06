@@ -535,7 +535,8 @@ class SettingsCtrl:
         """Manage the language among the one available."""
         menu = event.EventObject
         item = menu.FindItemById(event.Id)
-        settings.CONFIG['DEFAULT']['Language'] = item.Name
+        settings.CONFIG['DEFAULT']['Language'] = item.GetItemLabelText()
+        settings.save_config()
         dialog = wx.MessageDialog(None,
                                   message="Restart the program to apply modifications",
                                   pos=wx.DefaultPosition)
