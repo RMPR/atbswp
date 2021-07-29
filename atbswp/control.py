@@ -52,6 +52,9 @@ HEADER = (
     f"pyautogui.FAILSAFE = False\n"
 )
 
+START_COMMENT = "# START"
+END_COMMENT = "# END"
+
 LOOKUP_SPECIAL_KEY = {}
 
 
@@ -123,7 +126,9 @@ class RecordCtrl:
         self._header = HEADER
         self._error = "### This key is not supported yet"
 
+        # Initialize the action recorder
         self._capture = [self._header]
+
         self._lastx, self._lasty = pyautogui.position()
         self.mouse_sensibility = 21
         if getattr(sys, 'frozen', False):
@@ -339,17 +344,23 @@ class RecordCtrl:
             listener_mouse.start()
             self.last_time = time.perf_counter()
             self.recording = True
+            self._capture.append(START_COMMENT)
             recording_state = wx.Icon(os.path.join(
                 self.path, "img", "icon-recording.png"))
         else:
+            # Remove the recording trigger event
+            self._capture.pop()
+            self._capture.pop()
+
+            self._capture.append(END_COMMENT)
             self.recording = False
+
             with open(TMP_PATH, 'w') as f:
-                # Remove the recording trigger event
-                self._capture.pop()
-                self._capture.pop()
                 f.seek(0)
                 f.write("\n".join(self._capture))
                 f.truncate()
+
+            # Reset the action recorder
             self._capture = [self._header]
             recording_state = wx.Icon(
                 os.path.join(self.path, "img", "icon.png"))
