@@ -28,7 +28,6 @@ from threading import Event
 from threading import Thread
 
 import pyautogui
-pyautogui.PAUSE = 0
 
 from pynput import keyboard, mouse
 
@@ -39,6 +38,7 @@ from custom_widgets import SliderDialog
 import wx
 import wx.adv
 import wx.lib.newevent as NE
+
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%d"))
@@ -125,7 +125,6 @@ class RecordCtrl:
 
         self._capture = [self._header]
         self._lastx, self._lasty = pyautogui.position()
-        self.mouse_sensibility = 21
         if getattr(sys, 'frozen', False):
             self.path = sys._MEIPASS
         else:
@@ -308,8 +307,25 @@ class RecordCtrl:
         dialog.Destroy()
         settings.CONFIG['DEFAULT']['Recording Timer'] = str(new_value)
 
+    def mouse_speed(event):
+        """Set the mouse speed."""
+        # Workaround for user upgrading from a previous version
+        try:
+            current_value = settings.CONFIG.getint(
+                'DEFAULT', 'Mouse Speed')
+        except:
+            current_value = 21
+
+        dialog = wx.NumberEntryDialog(None, message="Choose an amount of time (seconds)",
+                                      prompt="", caption="Recording Timer", value=current_value, min=0, max=9999)
+        dialog.ShowModal()
+        new_value = dialog.Value
+        dialog.Destroy()
+        settings.CONFIG['DEFAULT']['Mouse Speed'] = str(new_value)
+
     def action(self, event):
         """Triggered when the recording button is clicked on the GUI."""
+        self.mouse_sensibility = settings.CONFIG.getint("DEFAULT", "Mouse Speed")
         listener_mouse = mouse.Listener(
             on_move=self.on_move,
             on_click=self.on_click,

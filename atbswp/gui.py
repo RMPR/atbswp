@@ -116,6 +116,11 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         self.Bind(wx.EVT_MENU,
                   control.RecordCtrl.recording_timer,
                   menu.Append(wx.ID_ANY, self.settings_text[8]))
+
+        # Mouse speed
+        self.Bind(wx.EVT_MENU,
+                  control.RecordCtrl.mouse_speed,
+                  menu.Append(wx.ID_ANY, self.settings_text[9]))
         return menu
 
     def __init__(self, *args, **kwds):
