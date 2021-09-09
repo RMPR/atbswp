@@ -58,4 +58,5 @@ except:
         "Always On Top": True,
         "Language": "en",
         "Recording Timer": 0,
+        "Mouse Speed": 21,
     }
