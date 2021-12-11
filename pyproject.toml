@@ -5,7 +5,7 @@ description = "Record mouse and keyboard actions and reproduce them identically 
 authors = ["RMPR <akoudanilo@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.6"
 wxPython = "^4.0"
 pynput = "^1.6"
 pyautogui = "^0.9.48"
