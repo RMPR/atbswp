@@ -1,1 +1,10 @@
+title: A minimal macro recorder
 theme: jekyll-theme-minimal
+logo: https://raw.githubusercontent.com/RMPR/atbswp/master/atbswp/img/icon.png
+description: A minimal macro recorder
+show_downloads: true
+github:
+    repository_url: https://github.com/rmpr/atbswp
+    owner_url: https://github.com/rmpr
+    zip_url: https://github.com/RMPR/atbswp/releases/latest 
+    tar_url: https://github.com/RMPR/atbswp/releases/latest 
