@@ -37,6 +37,9 @@ python3 -m pip install pyautogui pynput --user
 python3 atbswp/atbswp.py
 ```
 Manjaro/Arch
+
+Also available on the [AUR](https://aur.archlinux.org/packages/atbswp/)
+
 ```shell
 sudo pacman -S tk python-wxpython
 python3 -m pip install pyautogui pynput --user
