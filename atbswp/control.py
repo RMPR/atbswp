@@ -28,6 +28,7 @@ from threading import Event
 from threading import Thread
 
 import pyautogui
+pyautogui.PAUSE = 0
 
 from pynput import keyboard, mouse
 
@@ -38,7 +39,6 @@ from custom_widgets import SliderDialog
 import wx
 import wx.adv
 import wx.lib.newevent as NE
-
 
 TMP_PATH = os.path.join(tempfile.gettempdir(),
                         "atbswp-" + date.today().strftime("%Y%m%d"))
@@ -221,8 +221,8 @@ class RecordCtrl:
         if not self.recording:
             return False
         b = time.perf_counter()
-        timeout = int(b - self.last_time)
-        if timeout > 0:
+        timeout = float(b - self.last_time)
+        if timeout > 0.0:
             self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
         self.write_mouse_action(move="moveTo", parameters=f"{x}, {y}")
@@ -265,8 +265,8 @@ class RecordCtrl:
     def on_press(self, key):
         """Triggered by a key press."""
         b = time.perf_counter()
-        timeout = int(b - self.last_time)
-        if timeout > 0:
+        timeout = float(b - self.last_time)
+        if timeout > 0.0:
             self._capture.append(f"time.sleep({timeout})")
         self.last_time = b
 
