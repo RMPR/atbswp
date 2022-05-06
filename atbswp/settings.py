@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Record mouse and keyboard actions and reproduce them identically at will
 #
-# Copyright (C) 2019 Mairo Rufus <github@rmpr.xyz>
+# Copyright (C) 2019 Paul Mairo <github@rmpr.xyz>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
