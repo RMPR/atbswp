@@ -1,6 +1,6 @@
 # Record mouse and keyboard actions and reproduce them identically at will
 #
-# Copyright (C) 2019 Mairo Rufus <github@rmpr.xyz>
+# Copyright (C) 2019 Paul Mairo <github@rmpr.xyz>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -326,10 +326,10 @@ class MainDialog(wx.Dialog, wx.MiniFrame):
         info = wx.adv.AboutDialogInfo()
         info.Name = "atbswp"
         info.Version = f"{settings.VERSION}"
-        info.Copyright = (f"©{settings.YEAR} Mairo Rufus <github@rmpr.xyz>\n")
+        info.Copyright = (f"©{settings.YEAR} Paul Mairo <github@rmpr.xyz>\n")
         info.Description = "Record mouse and keyboard actions and reproduce them identically at will"
         info.WebSite = ("https://github.com/atbswp", "Project homepage")
-        info.Developers = ["Mairo Rufus"]
+        info.Developers = ["Paul Mairo"]
         info.License = "GNU General Public License V3"
         info.Icon = self.icon
         wx.adv.AboutBox(info)
