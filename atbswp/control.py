@@ -204,13 +204,6 @@ class RecordCtrl:
         """Triggered by a mouse move."""
         if not self.recording:
             return False
-        
-        def isinteger(s):
-            try:
-                int(s)
-                return True
-            except:
-                return False
 
         if abs(x - self._lastx) < self.mouse_sensibility \
            and abs(y - self._lasty) < self.mouse_sensibility:
