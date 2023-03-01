@@ -259,7 +259,7 @@ class RecordCtrl:
         """Triggered by a mouse wheel scroll."""
         if not self.recording:
             return False
-        self.write_mouse_action(move="scroll", parameters=f"{y}")
+        self.write_mouse_action(move="scroll", parameters=f"{dy}")
 
     def on_press(self, key):
         """Triggered by a key press."""
