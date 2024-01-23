@@ -75,7 +75,15 @@ enable Xorg.
 ```
 sudo sed 's/#WaylandEnable=false/WaylandEnable=false/' /etc/gdm/custom.conf -i # on Gnome
 ```
-[on Fedora](https://docs.fedoraproject.org/en-US/quick-docs/configuring-xorg-as-default-gnome-session/)
+[On Fedora](https://docs.fedoraproject.org/en-US/quick-docs/configuring-xorg-as-default-gnome-session/).
+
+
+Alternatively running with `GDK_BACKEND=x11` may help.
+
+```
+GDK_BACKEND=x11 ./atbswpv0.3.0-linux
+```
+It could be used to create appropriate ".desktop" entry.
 
 # Join us
 To keep up with the latest news about atbswp you can reach us on this [telegram channel](https://t.me/atbswp) we will
