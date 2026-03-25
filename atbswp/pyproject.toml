@@ -10,3 +10,8 @@ dependencies = [
     "wxpython>=4.2.5",
 ]
 authors = ["RMPR <github@rmpr.xyz>"]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.19.0",
+]
