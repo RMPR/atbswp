@@ -18,10 +18,9 @@
 
 """Entry point of the program."""
 
-import gui
-
-
 import wx
+
+import gui
 
 
 class Atbswp(wx.App):

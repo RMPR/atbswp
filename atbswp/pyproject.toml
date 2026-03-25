@@ -1,0 +1,12 @@
+[project]
+name = "atbswp"
+version = "0.1.0"
+description = "Record mouse and keyboard actions and reproduce them identically at will"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.1",
+    "wxpython>=4.2.5",
+]
+authors = ["RMPR <github@rmpr.xyz>"]
