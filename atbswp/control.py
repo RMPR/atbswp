@@ -50,6 +50,7 @@ HEADER = (
     f"import pyautogui\n"
     f"import time\n"
     f"pyautogui.FAILSAFE = False\n"
+    f"pyautogui.PAUSE = 0\n"
 )
 
 LOOKUP_SPECIAL_KEY = {}
@@ -263,6 +264,8 @@ class RecordCtrl:
 
     def on_press(self, key):
         """Triggered by a key press."""
+        if not self.recording:
+            return False
         b = time.perf_counter()
         timeout = float(b - self.last_time)
         if timeout > 0.0:
@@ -284,6 +287,11 @@ class RecordCtrl:
         if not self.recording:
             return False
         else:
+            b = time.perf_counter()
+            timeout = float(b - self.last_time)
+            if timeout > 0.0:
+                self._capture.append(f"time.sleep({timeout})")
+            self.last_time = b
             if len(str(key)) <= 3:
                 self.write_keyboard_action(move='keyUp', key=key)
             else:
