@@ -182,21 +182,6 @@ class RecordCtrl:
         move -- the mouse movement (mouseDown, mouseUp, scroll, moveTo)
         parameters -- the details of the movement
         """
-        def isinteger(s):
-            try:
-                int(s)
-                return True
-            except:
-                return False
-
-        if move == "moveTo":
-            coordinates = [int(s)
-                           for s in parameters.split(", ") if isinteger(s)]
-            if abs(coordinates[0] - self._lastx) < self.mouse_sensibility \
-               and abs(coordinates[1] - self._lasty) < self.mouse_sensibility:
-                return
-            else:
-                self._lastx, self._lasty = coordinates
         self._capture.append(engine + "." + move + '(' + parameters + ')')
 
     def write_keyboard_action(self, engine="pyautogui", move="", key=""):
@@ -219,6 +204,13 @@ class RecordCtrl:
         """Triggered by a mouse move."""
         if not self.recording:
             return False
+
+        if abs(x - self._lastx) < self.mouse_sensibility \
+           and abs(y - self._lasty) < self.mouse_sensibility:
+            return
+        else:
+            self._lastx, self._lasty = x,y
+        
         b = time.perf_counter()
         timeout = float(b - self.last_time)
         if timeout > 0.0:
