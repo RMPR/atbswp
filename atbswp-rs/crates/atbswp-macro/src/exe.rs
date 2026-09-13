@@ -1,57 +1,48 @@
-//! Standalone executables: player bytes + payload + 16-byte footer.
+//! Standalone executables: the player with the macro stored as the zip
+//! entry `macro.bin` (see `player/src/macro_format.h`).
 
-use crate::format::{FOOTER_LEN, MAGIC, Macro};
+use crate::format::Macro;
+use crate::zip;
 use crate::{Error, Result};
 use std::io::Write;
 
-/// True when `bytes` end with our footer.
-pub fn has_payload(bytes: &[u8]) -> bool {
-    bytes.len() >= FOOTER_LEN && &bytes[bytes.len() - 8..] == MAGIC
-}
+pub const MACRO_ENTRY: &str = "macro.bin";
 
-/// Split an executable into (player, payload).
-pub fn split(bytes: &[u8]) -> Result<(&[u8], &[u8])> {
-    if !has_payload(bytes) {
-        return Err(Error::Invalid("no macro footer found".into()));
-    }
-    let len_off = bytes.len() - FOOTER_LEN;
-    let payload_len = u64::from_le_bytes(bytes[len_off..len_off + 8].try_into().unwrap()) as usize;
-    if payload_len > len_off {
-        return Err(Error::Invalid("footer length exceeds file".into()));
-    }
-    let start = len_off - payload_len;
-    Ok((&bytes[..start], &bytes[start..len_off]))
+/// True when `bytes` carry a macro.
+pub fn has_payload(bytes: &[u8]) -> bool {
+    matches!(zip::read(bytes, MACRO_ENTRY), Ok(Some(_)))
 }
 
 /// Extract the macro embedded in an executable.
 pub fn extract(bytes: &[u8]) -> Result<Macro> {
-    let (_, payload) = split(bytes)?;
-    Macro::decode(payload)
+    match zip::read(bytes, MACRO_ENTRY)? {
+        Some(p) => Macro::decode(p),
+        None => Err(Error::Invalid("no macro.bin entry found".into())),
+    }
 }
 
-/// Return the bare player from an executable (strips a payload if present).
-pub fn player_of(bytes: &[u8]) -> &[u8] {
-    split(bytes).map(|(p, _)| p).unwrap_or(bytes)
+/// Bytes of the executable with any macro removed, so an exported macro can
+/// serve as the player for another export.
+pub fn player_of(bytes: &[u8]) -> Result<Vec<u8>> {
+    if has_payload(bytes) {
+        zip::remove_last(bytes, MACRO_ENTRY)
+    } else {
+        Ok(bytes.to_vec())
+    }
 }
 
-/// Write `player` followed by the macro payload and footer to `out`.
-pub fn write<W: Write>(player: &[u8], m: &Macro, mut out: W) -> Result<()> {
+/// Build the whole executable in memory.
+pub fn build(player: &[u8], m: &Macro) -> Result<Vec<u8>> {
     if player.is_empty() {
         return Err(Error::Invalid("player binary is empty".into()));
     }
-    let payload = m.encode();
-    out.write_all(player_of(player))?;
-    out.write_all(&payload)?;
-    out.write_all(&(payload.len() as u64).to_le_bytes())?;
-    out.write_all(MAGIC)?;
-    Ok(())
+    zip::append_stored(player, MACRO_ENTRY, &m.encode())
 }
 
-/// Convenience: build the whole executable in memory.
-pub fn build(player: &[u8], m: &Macro) -> Result<Vec<u8>> {
-    let mut v = Vec::with_capacity(player.len() + m.events.len() * 16 + 64);
-    write(player, m, &mut v)?;
-    Ok(v)
+/// Write `player` + macro to `out`.
+pub fn write<W: Write>(player: &[u8], m: &Macro, mut out: W) -> Result<()> {
+    out.write_all(&build(player, m)?)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -74,16 +65,29 @@ mod tests {
         assert!(exe.starts_with(player));
         assert!(has_payload(&exe));
         assert_eq!(extract(&exe).unwrap(), m);
-        assert_eq!(player_of(&exe), player);
-        // Re-embedding into an already-embedded exe replaces the payload.
+        assert_eq!(player_of(&exe).unwrap(), player.to_vec());
+        // Re-exporting from an exported macro replaces the payload in place.
         let m2 = Macro {
             events: vec![],
             ..m.clone()
         };
         let exe2 = build(&exe, &m2).unwrap();
         assert_eq!(extract(&exe2).unwrap(), m2);
-        assert_eq!(player_of(&exe2), player);
         assert_eq!(Macro::load(&exe).unwrap(), m);
+    }
+
+    #[test]
+    fn keeps_other_entries() {
+        let player = zip::append_stored(b"MZ player", "player-macos-x86_64", b"MACHO").unwrap();
+        let m = Macro::default();
+        let exe = build(&player, &m).unwrap();
+        assert_eq!(
+            zip::read(&exe, "player-macos-x86_64").unwrap(),
+            Some(&b"MACHO"[..])
+        );
+        assert_eq!(extract(&exe).unwrap(), m);
+        assert_eq!(player_of(&exe).unwrap(), player);
+        assert!(!has_payload(&player));
     }
 
     #[test]

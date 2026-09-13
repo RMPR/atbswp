@@ -19,7 +19,7 @@ pub fn player_bytes(explicit: Option<&Path>) -> Result<Vec<u8>, String> {
     let from_env = std::env::var_os("ATBSWP_PLAYER").map(PathBuf::from);
     if let Some(p) = explicit.map(Path::to_path_buf).or(from_env) {
         let b = fs::read(&p).map_err(|e| format!("{}: {e}", p.display()))?;
-        return Ok(exe::player_of(&b).to_vec());
+        return exe::player_of(&b).map_err(|e| format!("{}: {e}", p.display()));
     }
     if EMBEDDED_PLAYER.is_empty() {
         return Err(

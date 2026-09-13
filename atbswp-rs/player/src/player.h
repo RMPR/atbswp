@@ -41,6 +41,13 @@ bool keymap_evdev_to_win(uint16_t evdev, uint16_t *scancode, bool *extended);
 /* Translate an evdev keycode to a macOS virtual keycode. */
 bool keymap_evdev_to_mac(uint16_t evdev, uint16_t *vk);
 
+/* zipread.c: locate a stored entry in a zip that ends the buffer. */
+bool zip_find(const uint8_t *buf, size_t len, const char *name, size_t *off, size_t *size);
+
+/* Names inside the executable's zip section. */
+#define ZIP_MACRO "macro.bin"
+#define ZIP_MAC_HELPER "player-macos-x86_64"
+
 /* util */
 void sleep_us(uint64_t us);
 uint64_t now_us(void);

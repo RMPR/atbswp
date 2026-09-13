@@ -21,7 +21,7 @@ normal native program; the exported macro does not depend on it.
 | Path | What |
 |------|------|
 | `player/` | The macro player, in C, compiled **once** with [cosmocc] into an Actually Portable Executable (fat x86-64 + aarch64, all OSes). |
-| `crates/atbswp-macro` | Dependency-free library: binary payload format, text script format, footer embedding. Mirrors `player/src/macro_format.h`. |
+| `crates/atbswp-macro` | Dependency-free library: binary payload format, text script format, stored-zip embedding. Mirrors `player/src/macro_format.h`. |
 | `crates/atbswp-cli` | `atbswp` command: `record`, `export`, `dump`, `play`, `player`. |
 | `crates/atbswp-core` | Recording (evdev), player embedding, export and launch helpers shared by CLI and GUI. |
 | `crates/atbswp-gui` | Slint front end: the classic one-row toolbar (load, save, record, play, compile, settings, help). Built with `cargo build -p atbswp-gui`; not a default member because Slint takes a few minutes to compile. |
@@ -69,23 +69,27 @@ script from a compiled macro.
 
 ## How the standalone executable works
 
+An APE is also a valid zip archive, and cosmopolitan exposes its entries as
+`/zip/…` at runtime. The exporter stores the macro as one uncompressed entry:
+
 ```
-+--------------------------------------+
-| player.com  (APE, identical for all) |
-+--------------------------------------+
-| header      32 bytes                 |  version, event count, screen size,
-| events      16 bytes each            |  repeat, speed
-+--------------------------------------+
-| payload length   u64 LE              |
-| magic "ATBSWPM1"                     |
-+--------------------------------------+
++--------------------------------------------+
+| player.com  (APE, identical for all)       |
+|   /zip/player-macos-x86_64  Intel helper   |  optional, added in CI
+|   /zip/macro.bin                            |
+|      header  32 bytes   version, count,    |
+|                         screen, repeat,    |
+|      events  16 bytes   speed              |
++--------------------------------------------+
 ```
 
-Operating systems load executables from the front and ignore trailing bytes,
-so exporting is a plain concatenation and takes no time. On start the player
-opens its own file, reads the 16-byte footer, and copies the events into
-memory. Nothing is parsed, nothing is compiled, and there is no runtime to
-unpack, so a macro is running a few milliseconds after launch.
+`unzip -l my-macro.com` lists the contents. Exporting appends the entry and
+rewrites the zip directory, no compression involved, so it is instant. On
+start the player reads `/zip/macro.bin` straight into memory; nothing is
+parsed beyond fixed-size structs, nothing is compiled, and there is no
+runtime to unpack, so a macro is running a few milliseconds after launch.
+The player keeps cosmopolitan's `-mtiny` runtime and pulls the zip
+filesystem back in with a `__static_yoink`, which costs about 60 KiB.
 
 All OS libraries are loaded at runtime with `cosmo_dlopen`, so the player has
 zero link-time dependencies:
@@ -156,9 +160,11 @@ exported file on Windows, Apple Silicon and Intel macOS runners.
   On Intel Macs cosmopolitan loads the binary itself, so Apple's dynamic
   linker is absent and `dlopen` is impossible (Rosetta does not change
   that). CI therefore builds the *same player sources* natively with clang
-  as an x86-64 Mach-O and appends it behind the APE with its own footer
-  (`ATBSWPH1`, see `player/tools/bundle.py`); on an Intel Mac the APE
-  extracts it once to `$TMPDIR` and execs it with `--payload <itself>`.
+  as an x86-64 Mach-O and stores it as `/zip/player-macos-x86_64`
+  (`player/tools/bundle.py`). The kernel can only exec a real file, so on an
+  Intel Mac the APE copies it once to `$TMPDIR` and execs it with
+  `--payload <itself>`; the helper reads `macro.bin` with its own tiny zip
+  reader (`player/src/zipread.c`).
   A locally built player lacks the helper unless you run
   `make -C player bundle HELPER=...` with one from a macOS build. Either way
   the macro file needs Accessibility permission. Double-click detection

@@ -11,13 +11,13 @@ COSMOCC_VERSION ?= latest
 COSMOCC_URL ?= https://cosmo.zip/pub/cosmocc/cosmocc.zip
 COSMOCC ?= .cosmocc/bin/cosmocc
 
-SRC := src/player.c src/keymap.c src/backend_dry_run.c src/backend_linux.c \
+SRC := src/player.c src/keymap.c src/zipread.c src/backend_dry_run.c src/backend_linux.c \
        src/backend_windows.c src/backend_macos.c
 HDR := src/player.h src/macro_format.h
 
 CFLAGS ?= -Os -Wall -Wextra -Wno-unused-parameter
-# -mtiny: smallest possible cosmo runtime (no fancy crash reports etc.)
-COSMOFLAGS ?= -mcosmo -mtiny
+# -mtiny: smallest cosmo runtime; -s: no embedded symbol tables (~120 KiB)
+COSMOFLAGS ?= -mcosmo -mtiny -s
 
 all: build/player.com
 
@@ -47,7 +47,7 @@ build/player-macos-x86_64: $(SRC) $(HDR)
 		-framework CoreGraphics -framework CoreFoundation -framework ApplicationServices
 	strip $@
 
-# Append the macOS helper behind the APE (own footer, see player.c):
+# Store the macOS helper in the APE's zip section (APEs are zip files):
 #   make bundle HELPER=path/to/player-macos-x86_64
 HELPER ?= build/player-macos-x86_64
 bundle: build/player.com

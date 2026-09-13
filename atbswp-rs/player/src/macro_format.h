@@ -5,26 +5,25 @@
  * player.  Everything is little-endian and packed with natural alignment, so
  * the structs below can be read straight from disk on every supported target.
  *
- * File layout of a standalone macro executable:
+ * A standalone macro executable is the player (an APE, which is also a valid
+ * zip archive) with the payload stored as the zip entry "macro.bin":
  *
  *   +------------------------------------------+
  *   | player.com (this program, APE fat binary)|
+ *   |   zip: player-macos-x86_64  (Intel Mac   |
+ *   |        helper, optional)                 |
+ *   |   zip: macro.bin =                       |
+ *   |        atbswp_header     (32 bytes)      |
+ *   |        atbswp_event[n]   (16 bytes each) |
  *   +------------------------------------------+
- *   | atbswp_header           (32 bytes)       |
- *   | atbswp_event[n]         (16 bytes each)  |
- *   +------------------------------------------+
- *   | uint64_t payload_len    (header+events)  |
- *   | char     magic[8]  = "ATBSWPM1"          |
- *   +------------------------------------------+
+ *
+ * `unzip -l my-macro.com` lists it; the player reads /zip/macro.bin.
  */
 #ifndef ATBSWP_MACRO_FORMAT_H
 #define ATBSWP_MACRO_FORMAT_H
 
 #include <stdint.h>
 
-#define ATBSWP_MAGIC "ATBSWPM1"
-#define ATBSWP_MAGIC_LEN 8
-#define ATBSWP_FOOTER_LEN 16
 #define ATBSWP_FORMAT_VERSION 1
 
 enum atbswp_event_type {

@@ -6,8 +6,8 @@
 //!
 //! * raw binary payload (`.atbswp`),
 //! * a human-editable text script (see [`text`]),
-//! * appended to a copy of the portable player, which yields a standalone
-//!   executable (see [`exe`]).
+//! * stored as the zip entry `macro.bin` inside a copy of the portable
+//!   player, which yields a standalone executable (see [`exe`]).
 //!
 //! The crate has no dependencies so the CLI stays small and quick to build.
 
@@ -15,6 +15,7 @@ pub mod exe;
 pub mod format;
 pub mod keys;
 pub mod text;
+pub mod zip;
 
 pub use format::{Event, EventType, Header, Macro};
 

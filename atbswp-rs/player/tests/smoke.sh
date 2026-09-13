@@ -15,8 +15,10 @@ ev = [(1, 0, 100, 200, 0), (3, 0x110, 0, 0, 20000), (4, 0x110, 0, 0, 20000),
 hdr = struct.pack('<HHIIIIIII', 1, 0, len(ev), 1920, 1080, 1, 100, 0, 0)
 body = b''.join(struct.pack('<HHiiI', *e) for e in ev)
 open(sys.argv[1], 'wb').write(hdr + body)
-player = open(sys.argv[2], 'rb').read()
-open(sys.argv[3], 'wb').write(player + hdr + body + struct.pack('<Q', len(hdr + body)) + b'ATBSWPM1')
+import shutil, zipfile
+shutil.copyfile(sys.argv[2], sys.argv[3])
+with zipfile.ZipFile(sys.argv[3], 'a', zipfile.ZIP_STORED) as z:
+    z.writestr('macro.bin', hdr + body)
 PY
 chmod +x "$TMP/macro.com"
 

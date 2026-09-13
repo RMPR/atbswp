@@ -2,12 +2,9 @@
 
 use crate::{Error, Result};
 
-/// Footer magic, last 8 bytes of a standalone macro executable.
-pub const MAGIC: &[u8; 8] = b"ATBSWPM1";
 pub const FORMAT_VERSION: u16 = 1;
 pub const HEADER_LEN: usize = 32;
 pub const EVENT_LEN: usize = 16;
-pub const FOOTER_LEN: usize = 16;
 
 /// evdev button codes.
 pub const BTN_LEFT: u16 = 0x110;

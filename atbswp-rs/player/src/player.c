@@ -13,9 +13,14 @@
 
 #include "player.h"
 
+static int read_file(const char *path, uint8_t **out, size_t *len);
+
 #ifdef __COSMOPOLITAN__
 #include <libc/dce.h>
 #include <libc/runtime/runtime.h>
+/* -mtiny drops the /zip/ filesystem unless something pulls it in. */
+__static_yoink("__zipos_get");
+__static_yoink("zipos");
 #elif defined(__APPLE__)
 /* Native macOS build: the x86-64 helper bundled into the APE for Intel Macs
  * (cosmopolitan cannot dlopen there), see delegate_to_native_helper(). */
@@ -53,56 +58,15 @@ static char *GetProgramExecutableName(void)
 #include <unistd.h>
 #include <fcntl.h>
 
-#define HELPER_MAGIC "ATBSWPH1"
-
-/* Intel Macs: cosmopolitan cannot dlopen CoreGraphics there, so a native
- * x86-64 Mach-O build of this very program can be bundled right behind the
- * APE, ahead of the macro payload:
- *
- *   player.com | helper | u64 helper_len | "ATBSWPH1" | payload | u64 | "ATBSWPM1"
- *
- * (-mtiny drops cosmopolitan's /zip/ filesystem, hence our own footer.)
- * Returns the helper's offset and length in `path`, or -1 if none. */
-static int find_helper(const char *path, uint64_t *off, uint64_t *len)
+/* Intel Macs: cosmopolitan cannot dlopen CoreGraphics there, so the APE
+ * carries a native x86-64 Mach-O build of this very program in its zip
+ * section.  The kernel can only exec a real file, so copy it out to $TMPDIR
+ * once (keyed by size) and exec it with our payload. */
+static int delegate_to_native_helper(const char *payload, int argc, char **argv)
 {
-	FILE *f = fopen(path, "rb");
-	if (!f)
-		return -1;
-	int rc = -1;
-	if (fseek(f, 0, SEEK_END) == 0) {
-		long end = ftell(f);
-		uint8_t footer[ATBSWP_FOOTER_LEN];
-		/* skip the macro payload footer if present */
-		if (end >= ATBSWP_FOOTER_LEN && fseek(f, end - ATBSWP_FOOTER_LEN, SEEK_SET) == 0 &&
-		    fread(footer, 1, sizeof(footer), f) == sizeof(footer) &&
-		    !memcmp(footer + 8, ATBSWP_MAGIC, 8)) {
-			uint64_t plen = 0;
-			for (int i = 7; i >= 0; i--)
-				plen = (plen << 8) | footer[i];
-			end -= (long)(ATBSWP_FOOTER_LEN + plen);
-		}
-		if (end >= ATBSWP_FOOTER_LEN && fseek(f, end - ATBSWP_FOOTER_LEN, SEEK_SET) == 0 &&
-		    fread(footer, 1, sizeof(footer), f) == sizeof(footer) &&
-		    !memcmp(footer + 8, HELPER_MAGIC, 8)) {
-			uint64_t hlen = 0;
-			for (int i = 7; i >= 0; i--)
-				hlen = (hlen << 8) | footer[i];
-			if (hlen && hlen <= (uint64_t)end - ATBSWP_FOOTER_LEN) {
-				*len = hlen;
-				*off = (uint64_t)end - ATBSWP_FOOTER_LEN - hlen;
-				rc = 0;
-			}
-		}
-	}
-	fclose(f);
-	return rc;
-}
-
-/* Extract the bundled helper once to $TMPDIR and exec it with our payload. */
-static int delegate_to_native_helper(const char *self, const char *payload, int argc, char **argv)
-{
-	uint64_t off, len;
-	if (find_helper(self, &off, &len) != 0) {
+	const char *src = "/zip/" ZIP_MAC_HELPER;
+	struct stat hs;
+	if (stat(src, &hs) != 0) {
 		LOGE("Intel macOS needs the bundled native helper, which this player lacks\n");
 		return -1;
 	}
@@ -110,31 +74,24 @@ static int delegate_to_native_helper(const char *self, const char *payload, int 
 	if (!tmp || !*tmp)
 		tmp = "/tmp";
 	char dst[4096];
-	snprintf(dst, sizeof(dst), "%s/atbswp-helper-%llu-%llu", tmp, (unsigned long long)len,
-		 (unsigned long long)off);
+	snprintf(dst, sizeof(dst), "%s/atbswp-helper-%lld", tmp, (long long)hs.st_size);
 	struct stat cur;
-	if (stat(dst, &cur) != 0 || (uint64_t)cur.st_size != len) {
-		FILE *in = fopen(self, "rb");
-		int out = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0755);
-		if (!in || out < 0 || fseek(in, (long)off, SEEK_SET) != 0) {
-			LOGE("cannot extract helper to %s: %s\n", dst, strerror(errno));
+	if (stat(dst, &cur) != 0 || cur.st_size != hs.st_size) {
+		uint8_t *buf;
+		size_t len;
+		if (read_file(src, &buf, &len) != 0)
 			return -1;
-		}
-		char buf[65536];
-		uint64_t left = len;
-		while (left) {
-			size_t want = left < sizeof(buf) ? (size_t)left : sizeof(buf);
-			size_t n = fread(buf, 1, want, in);
-			if (!n || write(out, buf, n) != (ssize_t)n) {
-				LOGE("short copy extracting helper\n");
-				fclose(in);
+		int out = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+		if (out < 0 || write(out, buf, len) != (ssize_t)len) {
+			LOGE("cannot extract helper to %s: %s\n", dst, strerror(errno));
+			free(buf);
+			if (out >= 0) {
 				close(out);
 				unlink(dst);
-				return -1;
 			}
-			left -= n;
+			return -1;
 		}
-		fclose(in);
+		free(buf);
 		close(out);
 		chmod(dst, 0755);
 	}
@@ -242,50 +199,39 @@ static int read_file(const char *path, uint8_t **out, size_t *len)
 	return 0;
 }
 
-/* Locate the payload in an executable (or any file carrying our footer). */
-static int load_from_executable(const char *path, struct macro *m)
+/* Load the payload from a file's zip section (an exported macro). */
+static int load_from_zip_file(const char *path, struct macro *m)
 {
-	FILE *f = fopen(path, "rb");
-	if (!f) {
-		LOGE("cannot open %s: %s\n", path, strerror(errno));
+	uint8_t *buf;
+	size_t len, off, size;
+	if (read_file(path, &buf, &len) != 0)
 		return -1;
-	}
-	uint8_t footer[ATBSWP_FOOTER_LEN];
-	if (fseek(f, -ATBSWP_FOOTER_LEN, SEEK_END) != 0 ||
-	    fread(footer, 1, sizeof(footer), f) != sizeof(footer)) {
-		LOGE("%s: cannot read footer\n", path);
-		fclose(f);
-		return -1;
-	}
-	if (memcmp(footer + 8, ATBSWP_MAGIC, ATBSWP_MAGIC_LEN) != 0) {
-		LOGE("%s: no macro payload found (this is a bare player)\n", path);
-		fclose(f);
-		return -1;
-	}
-	uint64_t plen = 0;
-	for (int i = 7; i >= 0; i--)
-		plen = (plen << 8) | footer[i];
-	if (plen > (64u << 20)) {
-		LOGE("%s: implausible payload length\n", path);
-		fclose(f);
-		return -1;
-	}
-	if (fseek(f, -(long)(ATBSWP_FOOTER_LEN + plen), SEEK_END) != 0) {
-		fclose(f);
-		return -1;
-	}
-	uint8_t *buf = malloc((size_t)plen + 1);
-	if (!buf || fread(buf, 1, (size_t)plen, f) != plen) {
-		LOGE("%s: short read on payload\n", path);
-		free(buf);
-		fclose(f);
-		return -1;
-	}
-	fclose(f);
-	int rc = parse_payload(buf, (size_t)plen, m);
+	int rc = -1;
+	if (zip_find(buf, len, ZIP_MACRO, &off, &size))
+		rc = parse_payload(buf + off, size, m);
+	else
+		LOGE("%s: no %s entry found (this is a bare player)\n", path, ZIP_MACRO);
 	free(buf);
 	return rc;
 }
+
+#ifdef __COSMOPOLITAN__
+/* Load the payload from our own zip section via the /zip/ filesystem. */
+static int load_from_self(struct macro *m)
+{
+	uint8_t *buf;
+	size_t len;
+	if (access("/zip/" ZIP_MACRO, R_OK) != 0) {
+		LOGE("no macro payload found (this is a bare player)\n");
+		return -1;
+	}
+	if (read_file("/zip/" ZIP_MACRO, &buf, &len) != 0)
+		return -1;
+	int rc = parse_payload(buf, len, m);
+	free(buf);
+	return rc;
+}
+#endif
 
 /* ---- dumping --------------------------------------------------------- */
 
@@ -479,27 +425,29 @@ int main(int argc, char **argv)
 	struct macro m = { 0 };
 	if (payload_path) {
 		uint8_t *buf;
-		size_t len;
+		size_t len, off, size;
 		if (read_file(payload_path, &buf, &len) != 0)
 			return 1;
-		/* Accept either a raw payload or a file with a footer. */
+		/* Either a raw payload or an exported macro (zip). */
 		int rc;
-		if (len >= ATBSWP_FOOTER_LEN &&
-		    !memcmp(buf + len - ATBSWP_MAGIC_LEN, ATBSWP_MAGIC, ATBSWP_MAGIC_LEN))
-			rc = load_from_executable(payload_path, &m);
-		else
+		if (zip_find(buf, len, ZIP_MACRO, &off, &size)) {
+			free(buf);
+			rc = load_from_zip_file(payload_path, &m);
+		} else {
 			rc = parse_payload(buf, len, &m);
-		free(buf);
+			free(buf);
+		}
 		if (rc)
 			return 1;
 	} else {
+#ifdef __COSMOPOLITAN__
+		if (load_from_self(&m) != 0)
+			return 1;
+#else
 		const char *self = GetProgramExecutableName();
-		if (!self) {
-			LOGE("cannot determine own executable path\n");
+		if (!self || load_from_zip_file(self, &m) != 0)
 			return 1;
-		}
-		if (load_from_executable(self, &m) != 0)
-			return 1;
+#endif
 	}
 
 	if (do_dump) {
@@ -509,12 +457,12 @@ int main(int argc, char **argv)
 	}
 #ifdef __COSMOPOLITAN__
 	{
-		const char *self = GetProgramExecutableName();
-		uint64_t hoff, hlen;
-		if (self && find_helper(self, &hoff, &hlen) == 0)
-			LOGV("bundled Intel macOS helper present (%llu bytes)\n", (unsigned long long)hlen);
+		struct stat hs;
+		if (stat("/zip/" ZIP_MAC_HELPER, &hs) == 0)
+			LOGV("bundled Intel macOS helper present (%lld bytes)\n", (long long)hs.st_size);
 		if (!dry_run && IsXnu() && !IsXnuSilicon()) {
-			if (delegate_to_native_helper(self, payload_path ? payload_path : self, argc, argv) != 0) {
+			const char *self = payload_path ? payload_path : GetProgramExecutableName();
+			if (delegate_to_native_helper(self, argc, argv) != 0) {
 				free(m.events);
 				return 1;
 			}

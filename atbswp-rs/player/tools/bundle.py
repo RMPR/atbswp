@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
-"""Append (or replace) the native Intel-macOS helper behind an APE player.
+"""Store (or replace) the native Intel-macOS helper in an APE's zip section.
 
-Layout: player | helper | u64 LE helper_len | b"ATBSWPH1"
-The macro payload footer ("ATBSWPM1") is appended later by `atbswp export`.
+An APE is a valid zip archive; the player reads /zip/player-macos-x86_64.
+`atbswp export` later adds /zip/macro.bin the same way.
 """
-import struct
 import sys
+import zipfile
 
-MAGIC = b"ATBSWPH1"
-
-
-def strip_existing(data: bytes) -> bytes:
-    if len(data) >= 16 and data[-8:] == MAGIC:
-        (n,) = struct.unpack("<Q", data[-16:-8])
-        return data[: len(data) - 16 - n]
-    return data
+ENTRY = "player-macos-x86_64"
 
 
 def main() -> int:
@@ -22,16 +15,24 @@ def main() -> int:
         print("usage: bundle.py PLAYER.COM HELPER", file=sys.stderr)
         return 64
     player_path, helper_path = sys.argv[1:]
-    with open(player_path, "rb") as f:
-        player = strip_existing(f.read())
     with open(helper_path, "rb") as f:
         helper = f.read()
     if not helper:
         print("helper is empty", file=sys.stderr)
         return 1
-    with open(player_path, "wb") as f:
-        f.write(player + helper + struct.pack("<Q", len(helper)) + MAGIC)
-    print(f"bundled {len(helper)} byte helper into {player_path}")
+    # Rebuild the archive without a previous helper entry, then append.
+    try:
+        with zipfile.ZipFile(player_path) as z:
+            names = z.namelist()
+    except zipfile.BadZipFile:
+        names = []
+    if ENTRY in names:
+        print(f"{player_path} already carries {ENTRY}; replacing is not supported, "
+              "rebuild the player first", file=sys.stderr)
+        return 1
+    with zipfile.ZipFile(player_path, "a", zipfile.ZIP_STORED) as z:
+        z.writestr(ENTRY, helper)
+    print(f"stored {len(helper)} byte helper as /zip/{ENTRY} in {player_path}")
     return 0
 
 
