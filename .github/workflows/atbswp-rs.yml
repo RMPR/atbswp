@@ -105,7 +105,7 @@ jobs:
         with:
           workspaces: atbswp-rs
       - name: Install libei/libeis (EIS test server)
-        run: sudo apt-get update -q && sudo apt-get install -y -q libei-dev libeis1
+        run: sudo apt-get update -q && sudo apt-get install -y -q libei-dev libeis1 libfontconfig1-dev
       - name: Format
         run: cargo fmt --check
       - name: Clippy (advisory)
