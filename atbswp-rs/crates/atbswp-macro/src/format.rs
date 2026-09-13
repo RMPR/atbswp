@@ -213,8 +213,10 @@ impl Macro {
             )));
         }
         let events = body
-            .chunks_exact(EVENT_LEN)
-            .map(Event::read)
+            .as_chunks::<EVENT_LEN>()
+            .0
+            .iter()
+            .map(|c| Event::read(c))
             .collect::<Result<Vec<_>>>()?;
         Ok(Macro { header, events })
     }
