@@ -1,0 +1,160 @@
+# atbswp-rs
+
+Rust rewrite of atbswp with one new idea at its core: a recorded macro is
+exported as a **single standalone executable that runs on Linux, Windows and
+macOS, on x86-64 and ARM64, without installing anything**. The recorder is a
+normal native program; the exported macro does not depend on it.
+
+```
+ record (Rust, Linux)        export (Rust, any OS)           run (anywhere)
+┌──────────────────┐   ┌────────────────────────────┐   ┌─────────────────────┐
+│ /dev/input evdev │──▶│ player.com + payload + ftr │──▶│ my-macro.com        │
+│ or a text script │   │ (APE, ~450 KiB, prebuilt)  │   │ Wayland: libei      │
+└──────────────────┘   └────────────────────────────┘   │ X11: XTest          │
+                                                        │ Windows: SendInput  │
+                                                        │ macOS: CoreGraphics │
+                                                        └─────────────────────┘
+```
+
+## Layout
+
+| Path | What |
+|------|------|
+| `player/` | The macro player, in C, compiled **once** with [cosmocc] into an Actually Portable Executable (fat x86-64 + aarch64, all OSes). |
+| `crates/atbswp-macro` | Dependency-free library: binary payload format, text script format, footer embedding. Mirrors `player/src/macro_format.h`. |
+| `crates/atbswp-cli` | `atbswp` command: `record`, `export`, `dump`, `play`, `player`. |
+| `crates/atbswp-core` | Recording (evdev), player embedding, export and launch helpers shared by CLI and GUI. |
+| `crates/atbswp-gui` | Slint front end: the classic one-row toolbar (load, save, record, play, compile, settings, help). Built with `cargo build -p atbswp-gui`; not a default member because Slint takes a few minutes to compile. |
+| `tests/e2e.sh` | Exports a macro and replays it through libei into a real EIS server. No compositor needed. |
+
+## Build
+
+```sh
+make -C player                        # downloads cosmocc on first run, writes player/build/player.com
+cargo build --release                 # CLI; embeds player/build/player.com (atbswp-core/build.rs)
+cargo build --release -p atbswp-gui   # Slint GUI (winit + femtovg, no GTK at runtime)
+```
+
+Only Linux hosts can build the player today because cosmocc ships as Linux
+binaries; the Rust crates build anywhere and can take a pre-built player via
+`ATBSWP_PLAYER=/path/to/player.com` or `atbswp export --player`.
+
+## Use
+
+```sh
+# Record until F12 (or Ctrl-C). Needs the `input` group; see limitations.
+atbswp record -o demo.txt --screen 2560x1440
+
+# Or write a script by hand
+cat > demo.txt <<'M'
+screen 1920x1080
+move 640 360
+wait 50ms
+click left
+key a
+scroll down 2
+M
+
+atbswp export demo.txt -o demo.com     # one file, runs everywhere
+./demo.com                             # Linux / macOS (or: sh demo.com)
+demo.com                               # Windows (rename to .exe if you prefer)
+./demo.com --dump                      # show what is inside
+./demo.com --repeat 0 --speed 200      # forever, at 2x
+atbswp play demo.txt --dry-run         # print instead of injecting
+```
+
+Any command accepts a text script, a binary payload (`.atbswp`) or an exported
+executable as input, so `atbswp dump demo.com > demo.txt` recovers an editable
+script from a compiled macro.
+
+## How the standalone executable works
+
+```
++--------------------------------------+
+| player.com  (APE, identical for all) |
++--------------------------------------+
+| header      32 bytes                 |  version, event count, screen size,
+| events      16 bytes each            |  repeat, speed
++--------------------------------------+
+| payload length   u64 LE              |
+| magic "ATBSWPM1"                     |
++--------------------------------------+
+```
+
+Operating systems load executables from the front and ignore trailing bytes,
+so exporting is a plain concatenation and takes no time. On start the player
+opens its own file, reads the 16-byte footer, and copies the events into
+memory. Nothing is parsed, nothing is compiled, and there is no runtime to
+unpack, so a macro is running a few milliseconds after launch.
+
+All OS libraries are loaded at runtime with `cosmo_dlopen`, so the player has
+zero link-time dependencies:
+
+| Platform | Library | Notes |
+|----------|---------|-------|
+| Wayland | `libei.so.1` via the XDG RemoteDesktop portal (`libdbus-1.so.3`) | GNOME 45+, KDE Plasma 6. The portal asks once; the restore token is cached in `$XDG_STATE_HOME/atbswp-portal-token`. `LIBEI_SOCKET` bypasses the portal (used by the tests). |
+| X11 | `libX11.so.6` + `libXtst.so.6` | Automatic fallback when no portal answers and `DISPLAY` is set. Force with `ATBSWP_BACKEND=xtest`. |
+| Windows | `user32.dll` SendInput | Scan codes, extended keys, hi-res wheel. |
+| macOS | CoreGraphics event taps | Apple Silicon via `cosmo_dlopen`; Intel via a bundled native x86-64 helper (see limitations). Needs Accessibility permission for the macro file. |
+
+Key codes are stored as evdev codes and translated per platform in
+`player/src/keymap.c`. Absolute mouse positions are scaled from the recorded
+screen size to the target's.
+
+## Text script reference
+
+```
+screen WxH            recording screen size (enables scaling)
+repeat N              0 = forever
+speed PCT             100 = real time
+wait 50ms | 2s | 300us | 1500
+move X Y              absolute
+moverel DX DY
+click left|right|middle|side|extra
+buttondown / buttonup BUTTON
+key KEY_A | a | enter | 30
+keydown / keyup KEY
+scroll DX DY          1/120 notch units, +y = down
+scroll up|down|left|right N
+```
+
+## Testing
+
+```sh
+cargo test                 # format, text and footer round trips
+make -C player test        # APE: dump, dry-run, timing (no display needed)
+make -C player e2e         # APE -> libei -> EIS server, asserts every event
+```
+
+CI (`.github/workflows/atbswp-rs.yml`) builds the APE on Ubuntu and the
+Intel helper on macOS, bundles them, runs all of the above, then launches
+the exported file on Windows, Apple Silicon and Intel macOS runners.
+
+## Limitations, honestly
+
+* **Recording on Wayland uses evdev**, so it needs the `input` group and it
+  sees *relative* mouse motion, not the cursor position. Replay of relative
+  motion is only exact if pointer acceleration is the same (flat profile) on
+  both ends. Clicks, keys and scrolling are exact. Absolute moves in hand
+  written scripts are always exact. A compositor-side recorder (e.g. through
+  the InputCapture portal) is the natural next step.
+* macOS: on Apple Silicon the APE plays natively through `cosmo_dlopen`.
+  On Intel Macs cosmopolitan loads the binary itself, so Apple's dynamic
+  linker is absent and `dlopen` is impossible (Rosetta does not change
+  that). CI therefore builds the *same player sources* natively with clang
+  as an x86-64 Mach-O and appends it behind the APE with its own footer
+  (`ATBSWPH1`, see `player/tools/bundle.py`); on an Intel Mac the APE
+  extracts it once to `$TMPDIR` and execs it with `--payload <itself>`.
+  A locally built player lacks the helper unless you run
+  `make -C player bundle HELPER=...` with one from a macOS build. Either way
+  the macro file needs Accessibility permission. Double-click detection
+  relies on the OS click-state, which is not emulated yet.
+* The GUI records with the same evdev backend and stops on F12 or the
+  record button; file dialogs go through the XDG portal (`rfd`). It has not
+  been exercised on a real display yet, only compiled.
+* Windows: keys not in the keymap table (media keys, some international
+  keys) are skipped, `--verbose` tells you which.
+* Linux without the `ape` binfmt handler runs the file through `sh` first
+  (about 5 ms); installing the `ape` loader system-wide removes that hop.
+
+[cosmocc]: https://github.com/jart/cosmopolitan/blob/master/tool/cosmocc/README.md

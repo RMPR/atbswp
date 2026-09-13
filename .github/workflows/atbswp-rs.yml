@@ -1,0 +1,178 @@
+# CI for the Rust rewrite (atbswp-rs/).
+#
+# Pipeline:
+#   player        Linux   cosmocc -> player/build/player.com (fat APE)
+#   macos-helper  macOS   clang -arch x86_64 -> native helper for Intel Macs
+#   bundle        Linux   helper appended behind the APE, smoke test, artifact
+#   rust          Linux   cargo test, libei end-to-end, export a sample macro
+#   portable      Win/mac the exported file must start unmodified everywhere
+name: atbswp-rs
+
+on:
+  push:
+    branches: [master, oxidization]
+    paths: ["atbswp-rs/**", ".github/workflows/atbswp-rs.yml"]
+  pull_request:
+    paths: ["atbswp-rs/**", ".github/workflows/atbswp-rs.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: atbswp-rs
+
+jobs:
+  player:
+    name: player (APE, cosmocc)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cosmocc
+        uses: actions/cache@v4
+        with:
+          path: atbswp-rs/player/.cosmocc
+          key: cosmocc-${{ hashFiles('atbswp-rs/player/Makefile') }}
+      - name: Build player
+        run: make -C player
+      - name: Smoke test
+        run: make -C player test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-unbundled
+          path: atbswp-rs/player/build/player.com
+          if-no-files-found: error
+
+  macos-helper:
+    name: macOS x86-64 helper (clang)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native helper
+        run: make -C player native-macos
+      - name: Helper starts (under Rosetta on an arm64 runner)
+        run: |
+          file player/build/player-macos-x86_64
+          player/build/player-macos-x86_64 --version
+      - name: Native smoke test
+        run: sh player/tests/smoke.sh player/build/player-macos-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-macos-x86_64
+          path: atbswp-rs/player/build/player-macos-x86_64
+          if-no-files-found: error
+
+  bundle:
+    name: bundle helper into APE
+    runs-on: ubuntu-24.04
+    needs: [player, macos-helper]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: player-unbundled
+          path: atbswp-rs/player/build
+      - uses: actions/download-artifact@v4
+        with:
+          name: player-macos-x86_64
+          path: atbswp-rs/player/build
+      - name: Bundle
+        run: |
+          chmod +x player/build/player.com
+          touch player/build/player.com   # newer than sources: do not rebuild
+          make -C player bundle
+      - name: Smoke test the bundled player
+        run: sh player/tests/smoke.sh player/build/player.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player.com
+          path: atbswp-rs/player/build/player.com
+          if-no-files-found: error
+
+  rust:
+    name: rust crates + libei end-to-end
+    runs-on: ubuntu-24.04
+    needs: bundle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: player.com
+          path: atbswp-rs/player/build
+      - run: chmod +x player/build/player.com
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: atbswp-rs
+      - name: Install libei/libeis (EIS test server)
+        run: sudo apt-get update -q && sudo apt-get install -y -q libei-dev libeis1
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy (advisory)
+        continue-on-error: true
+        run: cargo clippy -q -- -D warnings
+      - name: Unit tests
+        run: cargo test -q
+      - name: Type-check the Slint GUI
+        run: cargo check -q -p atbswp-gui
+      - name: Build EIS sink
+        run: make -C player build/eis_sink
+      - name: End-to-end through libei
+        run: sh tests/e2e.sh
+      - name: Export a sample macro for the other OSes
+        run: |
+          printf 'move 100 100\nwait 20ms\nclick left\nkey a\nscroll down 1\n' > sample.txt
+          cargo run -q -p atbswp-cli -- export sample.txt -o sample-macro.com
+          cargo run -q -p atbswp-cli -- dump sample-macro.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-macro
+          path: atbswp-rs/sample-macro.com
+
+  # The same exported file, unmodified, must start on every OS/arch.
+  portable:
+    name: run exported macro on ${{ matrix.os }}
+    needs: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sample-macro
+      - name: Dump and dry-run (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          copy sample-macro.com sample-macro.exe
+          sample-macro.exe --dump
+          sample-macro.exe --dry-run --speed 1000
+      - name: Inject for real (Windows, headless session accepts SendInput)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: sample-macro.exe --verbose --speed 1000
+      - name: Dump and dry-run (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x sample-macro.com
+          uname -m
+          ./sample-macro.com --dump
+          ./sample-macro.com --dry-run --speed 1000
+      # No Accessibility permission on CI, so events are dropped by the OS,
+      # but the code path up to CGEventPost must run without error.
+      - name: Play (Apple Silicon, cosmo_dlopen path)
+        if: matrix.os == 'macos-latest'
+        run: ATBSWP_VERBOSE=1 ./sample-macro.com --speed 1000
+      - name: Play (Intel, delegates to bundled native helper)
+        if: matrix.os == 'macos-15-intel'
+        run: |
+          ATBSWP_VERBOSE=1 ./sample-macro.com --speed 1000 2> player.log; rc=$?
+          cat player.log
+          grep -q "delegating to native helper" player.log
+          ls -l "${TMPDIR:-/tmp}"/atbswp-helper-* 
+          exit $rc

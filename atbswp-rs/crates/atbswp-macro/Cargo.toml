@@ -1,0 +1,9 @@
+[package]
+name = "atbswp-macro"
+description = "Macro payload format shared by the atbswp recorder and the portable player"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
