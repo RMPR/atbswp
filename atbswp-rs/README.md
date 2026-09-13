@@ -120,15 +120,29 @@ scroll up|down|left|right N
 
 ## Testing
 
+Every injection path is checked the same way: the exported macro plays for
+real, an independent observer records what the OS delivered, and the test
+diffs it against `tests/golden.txt`.
+
+| Path | Observer | Where |
+|------|----------|-------|
+| libei protocol | `player/tests/eis_sink.c`, a real EIS server on `LIBEI_SOCKET` | `tests/e2e.sh`, local + CI |
+| RemoteDesktop portal (libdbus, restore token) | `tests/fake_portal.py` on a private bus, handing the sink's socket to the player | `tests/e2e_portal.sh`, local + CI |
+| XTest | Xvfb, `xinput test-xi2 --root`, `xdotool getmouselocation` | `tests/e2e_x11.sh`, CI |
+| Windows SendInput | `tests/win/HookListener.cs`, low-level keyboard/mouse hooks | `tests/win/run.ps1`, CI |
+| macOS CoreGraphics, arm64 dlopen and Intel helper | pointer position via `tests/mac/cursor.c` | CI (hosted runners honour mouse events; keys are not observed) |
+
 ```sh
 cargo test                 # format, text and footer round trips
 make -C player test        # APE: dump, dry-run, timing (no display needed)
-make -C player e2e         # APE -> libei -> EIS server, asserts every event
+make -C player e2e         # libei -> EIS server
+sh tests/e2e_portal.sh     # through the fake portal (python3-dbus, python3-gi)
+sh tests/e2e_x11.sh macro.com   # needs xvfb-run, xinput, xdotool
 ```
 
 CI (`.github/workflows/atbswp-rs.yml`) builds the APE on Ubuntu and the
-Intel helper on macOS, bundles them, runs all of the above, then launches
-the exported file on Windows, Apple Silicon and Intel macOS runners.
+Intel helper on macOS, bundles them, runs all of the above, then plays the
+exported file on Windows, Apple Silicon and Intel macOS runners.
 
 ## Limitations, honestly
 

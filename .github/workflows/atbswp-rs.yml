@@ -173,9 +173,9 @@ jobs:
           uname -m
           ./golden-macro.com --dump
           ./golden-macro.com --dry-run --speed 1000
-      # Hosted runners cannot grant Accessibility, so the OS may drop the
-      # events; the code path up to CGEventPost must still run, and we
-      # report whether the pointer actually moved.
+      # Hosted runners turn out to honour posted mouse events even without
+      # an Accessibility grant, so the pointer position is a real observer:
+      # 200,300 as recorded on a 1024x768 screen, scaled to the runner's.
       - name: Play and check the pointer (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -183,11 +183,12 @@ jobs:
           echo "pointer before: $(./cursor)"
           ATBSWP_VERBOSE=1 ./golden-macro.com --speed 400 2> player.log; rc=$?
           cat player.log
-          echo "pointer after:  $(./cursor)"
-          if [ "$(uname -m)" = x86_64 ]; then
-            grep -q "delegating to native helper" player.log
-            grep -q "backend macos ready" player.log
-          else
-            grep -q "backend macos ready" player.log
-          fi
-          exit $rc
+          after=$(./cursor); echo "pointer after:  $after"
+          test "$rc" -eq 0
+          grep -q "backend macos ready" player.log
+          if [ "$(uname -m)" = x86_64 ]; then grep -q "delegating to native helper" player.log; fi
+          w=$(system_profiler SPDisplaysDataType | awk '/Resolution/ {print $2; exit}')
+          h=$(system_profiler SPDisplaysDataType | awk '/Resolution/ {print $4; exit}')
+          expected="$((200 * w / 1024)) $((300 * h / 768))"
+          echo "expected:       $expected (screen ${w}x${h})"
+          test "$after" = "$expected"
