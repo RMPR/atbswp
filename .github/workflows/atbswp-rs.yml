@@ -187,8 +187,8 @@ jobs:
           test "$rc" -eq 0
           grep -q "backend macos ready" player.log
           if [ "$(uname -m)" = x86_64 ]; then grep -q "delegating to native helper" player.log; fi
-          w=$(system_profiler SPDisplaysDataType | awk '/Resolution/ {print $2; exit}')
-          h=$(system_profiler SPDisplaysDataType | awk '/Resolution/ {print $4; exit}')
+          screen=$(grep -o 'target screen [0-9]*x[0-9]*' player.log | awk '{print $3}')
+          w=${screen%x*}; h=${screen#*x}
           expected="$((200 * w / 1024)) $((300 * h / 768))"
           echo "expected:       $expected (screen ${w}x${h})"
           test "$after" = "$expected"
