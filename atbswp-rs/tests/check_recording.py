@@ -3,7 +3,7 @@
 golden events in order.  Motion is coalesced and timing jitters, so only the
 event sequence and the final pointer position are compared.
 
-usage: check_recording.py DUMP.txt [--scale W H]   (W,H = recording screen)
+usage: check_recording.py DUMP.txt [--scale W H]   (default: the dump's `screen` line)
 """
 import re
 import sys
@@ -15,6 +15,12 @@ if len(sys.argv) >= 5 and sys.argv[2] == "--scale":
 
 lines = [l.split("#")[0].strip() for l in dump.splitlines()]
 events = [l for l in lines if l and not l.startswith(("screen", "repeat", "speed", "wait"))]
+# the golden macro was recorded for 1024x768; a recorder on another screen
+# sees the player's scaled coordinates, so scale the expectation the same way
+for l in lines:
+    if l.startswith("screen ") and scale is None:
+        w, h = l.split()[1].split("x")
+        scale = (int(w), int(h))
 
 # expected sequence; motion may be split into several "move" lines, only the
 # last one before the click matters.

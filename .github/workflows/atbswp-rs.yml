@@ -204,18 +204,17 @@ jobs:
           expected="$((200 * w / 1024)) $((300 * h / 768))"
           echo "expected:       $expected (screen ${w}x${h})"
           test "$after" = "$expected"
-      # Hosted macOS runners have no way to grant Input Monitoring, so the
-      # event-tap recorder is expected to be refused there; the step shows
-      # what happens and is advisory until a self-hosted Mac exists.
-      - name: Record while playing (macOS event tap, advisory)
+      # Hosted macOS runners turn out to allow a listen-only event tap, so
+      # the recorder is checked for real here too.
+      - name: Record while playing (macOS event tap recorder)
         if: runner.os == 'macOS'
-        continue-on-error: true
         run: |
           atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
           REC=$!
           sleep 2
           ./golden-macro.com --speed 400
           for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
-          kill $REC 2>/dev/null || true
+          if kill -0 $REC 2>/dev/null; then kill $REC; cat rec.err; echo "recorder did not stop on F12"; exit 1; fi
           cat rec.err
-          cat rec.txt && python3 atbswp-rs/tests/check_recording.py rec.txt
+          cat rec.txt
+          python3 atbswp-rs/tests/check_recording.py rec.txt
