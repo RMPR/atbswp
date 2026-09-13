@@ -41,11 +41,28 @@ binaries; the Rust crates build anywhere and can take a pre-built player via
 
 ## Use
 
-```sh
-# Record until F12 (or Ctrl-C).
-atbswp record -o demo.txt
+The macro **is** an executable. Recording writes one; you run it.
 
-# Or write a script by hand
+```sh
+atbswp record -o demo.com     # press F12 to stop
+./demo.com                    # Linux / macOS (or: sh demo.com)
+demo.com                      # Windows (rename to .exe if you prefer)
+./demo.com --repeat 0 --speed 200
+```
+
+The same `demo.com` runs unmodified on Linux (Wayland and X11), Windows, and
+macOS, whichever platform it was recorded on: events are stored as evdev
+codes and absolute positions are scaled from the recorded screen to the
+target's. CI exports a macro on Ubuntu and runs it on Windows, Apple Silicon
+and Intel macOS runners on every push.
+
+Scripts are the editable alternative and convert both ways:
+
+```sh
+atbswp dump demo.com > demo.txt   # macro -> script
+$EDITOR demo.txt
+atbswp export demo.txt -o demo.com   # script -> macro
+atbswp play demo.txt --dry-run       # try a script without exporting
 cat > demo.txt <<'M'
 screen 1920x1080
 move 640 360
@@ -54,18 +71,10 @@ click left
 key a
 scroll down 2
 M
-
-atbswp export demo.txt -o demo.com     # one file, runs everywhere
-./demo.com                             # Linux / macOS (or: sh demo.com)
-demo.com                               # Windows (rename to .exe if you prefer)
-./demo.com --dump                      # show what is inside
-./demo.com --repeat 0 --speed 200      # forever, at 2x
-atbswp play demo.txt --dry-run         # print instead of injecting
 ```
 
-Any command accepts a text script, a binary payload (`.atbswp`) or an exported
-executable as input, so `atbswp dump demo.com > demo.txt` recovers an editable
-script from a compiled macro.
+`record -o FILE.txt` writes the script form directly; `.atbswp` is the raw
+binary payload.
 
 ## How the standalone executable works
 

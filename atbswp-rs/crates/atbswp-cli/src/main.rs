@@ -12,7 +12,7 @@ const USAGE: &str = "\
 atbswp - record mouse & keyboard macros, export them as portable executables
 
 usage:
-  atbswp record  [-o FILE] [--stop-key KEY] [--screen WxH] [--min-move-interval MS]
+  atbswp record  [-o MACRO.com] [--stop-key KEY] [--screen WxH] [--min-move-interval MS]
                  [--no-elevate]
   atbswp export  INPUT -o OUTPUT [--player PLAYER.COM] [--repeat N] [--speed PCT]
   atbswp dump    INPUT [--binary]
@@ -25,9 +25,11 @@ executable; the format is detected automatically.
 record captures the keyboard and mouse on X11 (XRecord), Windows (low-level
 hooks) and macOS (event tap, asks for Input Monitoring once).  On Wayland it
 reads /dev/input and, unless --no-elevate, asks for authorisation through
-pkexec when those devices are not readable.  It writes a text script by
-default (.atbswp = binary, .com/.exe = standalone executable) and stops on
-Ctrl-C or the stop key (default KEY_F12, which is not recorded).
+pkexec when those devices are not readable.  It stops on Ctrl-C or the stop
+key (default KEY_F12, which is not recorded) and writes a standalone
+executable (macro-<time>.com unless -o is given) that runs as-is on Linux,
+Windows and macOS.  Use -o FILE.txt for an editable script or -o FILE.atbswp
+for the raw payload; export turns either back into an executable.
 ";
 
 struct Args {
@@ -203,21 +205,37 @@ fn cmd_record(args: &Args) -> Result<(), String> {
         m.events.len(),
         m.duration_us() as f64 / 1e6
     );
-    match out {
-        Some(p) if p.ends_with(".atbswp") => {
-            fs::write(p, m.encode()).map_err(|e| format!("{p}: {e}"))?;
-            eprintln!("wrote {p} ({summary})");
-        }
-        Some(p) if p.ends_with(".com") || p.ends_with(".exe") => {
+    // The macro *is* an executable: that is the default output.  A text
+    // script (.txt) or raw payload (.atbswp) is available for editing.
+    let mut path = out.map(str::to_string).unwrap_or_else(|| {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        format!("macro-{stamp}.com")
+    });
+    if Path::new(&path).extension().is_none() {
+        path.push_str(".com");
+    }
+    let p = Path::new(&path);
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "atbswp" => fs::write(p, m.encode()).map_err(|e| format!("{path}: {e}"))?,
+        "com" | "exe" => {
             let player = player_bytes(args)?;
-            atbswp_core::write_exe(Path::new(p), &player, &m)?;
-            eprintln!("wrote {p} ({summary})");
+            atbswp_core::write_exe(p, &player, &m)?;
         }
-        Some(p) => {
-            fs::write(p, text::render(&m)).map_err(|e| format!("{p}: {e}"))?;
-            eprintln!("wrote {p} ({summary})");
-        }
-        None => print!("{}", text::render(&m)),
+        _ => fs::write(p, text::render(&m)).map_err(|e| format!("{path}: {e}"))?,
+    }
+    eprintln!("wrote {path} ({summary})");
+    if matches!(ext.as_str(), "com" | "exe") {
+        eprintln!(
+            "run it directly on Linux, Windows or macOS; `atbswp dump {path}` shows the script"
+        );
     }
     Ok(())
 }

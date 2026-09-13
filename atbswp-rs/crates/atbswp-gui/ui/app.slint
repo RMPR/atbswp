@@ -67,10 +67,10 @@ export component MainWindow inherits Window {
         HorizontalLayout {
             spacing: 0px;
             ToolButton { icon: @image-url("../../../../atbswp/img/file-upload.png"); tooltip: "Load capture"; enabled: !root.busy; clicked => { root.load-clicked(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/save.png"); tooltip: "Save capture"; enabled: !root.busy && root.event-count > 0; clicked => { root.save-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/save.png"); tooltip: "Save macro (standalone executable)"; enabled: !root.busy && root.event-count > 0; clicked => { root.save-clicked(); } }
             ToolButton { icon: root.recording ? @image-url("../../../../atbswp/img/icon-recording.png") : @image-url("../../../../atbswp/img/video.png"); tooltip: root.recording ? "Stop recording" : "Record"; active: root.recording; enabled: !root.playing; clicked => { root.record-toggled(); } }
             ToolButton { icon: @image-url("../../../../atbswp/img/play-circle.png"); tooltip: root.playing ? "Stop" : "Play"; active: root.playing; enabled: !root.recording && (root.event-count > 0 || root.playing); clicked => { root.play-toggled(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/download.png"); tooltip: "Compile to executable"; enabled: !root.busy && root.event-count > 0; clicked => { root.compile-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/download.png"); tooltip: "Export as executable"; enabled: !root.busy && root.event-count > 0; clicked => { root.compile-clicked(); } }
             ToolButton { icon: @image-url("../../../../atbswp/img/cog.png"); tooltip: "Playback settings"; active: root.show-settings; clicked => { root.show-settings = !root.show-settings; } }
             ToolButton { icon: @image-url("../../../../atbswp/img/question-circle.png"); tooltip: "Help"; clicked => { root.help-clicked(); } }
         }

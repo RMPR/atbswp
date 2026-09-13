@@ -123,9 +123,12 @@ fn main() {
                         .set_file_name(format!("{default_name}.com"))
                         .add_filter("Standalone macro", &["com", "exe"])
                 } else {
-                    file_filter(rfd::FileDialog::new())
-                        .set_title("Save capture")
-                        .set_file_name(format!("{default_name}.txt"))
+                    // the macro is an executable; scripts are the editable alternative
+                    rfd::FileDialog::new()
+                        .set_title("Save macro")
+                        .set_file_name(format!("{default_name}.com"))
+                        .add_filter("Standalone macro (runs anywhere)", &["com", "exe"])
+                        .add_filter("Editable script", &["txt", "atbswp"])
                 };
                 let Some(path) = dialog.save_file() else {
                     return;
