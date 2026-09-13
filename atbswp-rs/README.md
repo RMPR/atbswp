@@ -23,7 +23,7 @@ normal native program; the exported macro does not depend on it.
 | `player/` | The macro player, in C, compiled **once** with [cosmocc] into an Actually Portable Executable (fat x86-64 + aarch64, all OSes). |
 | `crates/atbswp-macro` | Dependency-free library: binary payload format, text script format, stored-zip embedding. Mirrors `player/src/macro_format.h`. |
 | `crates/atbswp-cli` | `atbswp` command: `record`, `export`, `dump`, `play`, `player`. |
-| `crates/atbswp-core` | Recording (evdev), player embedding, export and launch helpers shared by CLI and GUI. |
+| `crates/atbswp-core` | Recording backends (XRecord, Windows hooks, macOS event tap, evdev), player embedding, export and launch helpers shared by CLI and GUI. |
 | `crates/atbswp-gui` | Slint front end: the classic one-row toolbar (load, save, record, play, compile, settings, help). Built with `cargo build -p atbswp-gui`; not a default member because Slint takes a few minutes to compile. |
 | `tests/e2e.sh` | Exports a macro and replays it through libei into a real EIS server. No compositor needed. |
 
@@ -42,8 +42,8 @@ binaries; the Rust crates build anywhere and can take a pre-built player via
 ## Use
 
 ```sh
-# Record until F12 (or Ctrl-C). Needs the `input` group; see limitations.
-atbswp record -o demo.txt --screen 2560x1440
+# Record until F12 (or Ctrl-C).
+atbswp record -o demo.txt
 
 # Or write a script by hand
 cat > demo.txt <<'M'
@@ -105,6 +105,34 @@ Key codes are stored as evdev codes and translated per platform in
 `player/src/keymap.c`. Absolute mouse positions are scaled from the recorded
 screen size to the target's.
 
+## Recording
+
+Recording is native and unprivileged wherever the platform allows it:
+
+| Platform | Source | Privilege | Pointer |
+|----------|--------|-----------|---------|
+| X11 | XRecord extension | none | absolute |
+| Windows | `WH_KEYBOARD_LL` / `WH_MOUSE_LL` hooks | none | absolute |
+| macOS | listen-only `CGEventTap` | Input Monitoring, prompted once per app | absolute |
+| Wayland | evdev (`/dev/input`) | polkit prompt via `pkexec` per recording, or root, or the `input` group | relative only |
+
+Wayland is the odd one out because no compositor protocol lets a client
+watch input passively. libei's receiver side, fed by the InputCapture portal,
+is built for Input-Leap-style tools: it only delivers events after the
+pointer crosses a barrier you define, and while it does the desktop stops
+receiving them. So on Wayland the recorder reads evdev, and when `/dev/input`
+is not readable it re-runs itself through `pkexec`, which shows the desktop's
+authorisation dialog; only the small recorder runs privileged and the file is
+written by the unprivileged parent. `--no-elevate` disables that. Because
+evdev sees devices rather than the cursor, Wayland recordings contain
+relative motion, which replays exactly only with the same pointer
+acceleration (flat profile) on both ends. Clicks, keys and scrolling are
+exact everywhere.
+
+Key codes are stored as evdev codes; `player/src/keymap.c` is the single
+table for Windows scancodes and macOS virtual keycodes, and
+`player/tools/gen_keymap_rs.py` generates the recorder's copy from it.
+
 ## Text script reference
 
 ```
@@ -135,6 +163,7 @@ diffs it against `tests/golden.txt`.
 | XTest | Xvfb, `xinput test-xi2 --root`, `xdotool getmouselocation` | `tests/e2e_x11.sh`, CI |
 | Windows SendInput | `tests/win/HookListener.cs`, low-level keyboard/mouse hooks | `tests/win/run.ps1`, CI |
 | macOS CoreGraphics, arm64 dlopen and Intel helper | pointer position via `tests/mac/cursor.c` | CI (hosted runners honour mouse events; keys are not observed) |
+| Recorders (XRecord, Windows hooks) | `atbswp record` itself, while the golden macro plays; `tests/check_recording.py` diffs the result | `tests/e2e_x11_record.sh`, `tests/win/record.ps1`, CI |
 
 ```sh
 cargo test                 # format, text and footer round trips
@@ -150,12 +179,8 @@ exported file on Windows, Apple Silicon and Intel macOS runners.
 
 ## Limitations, honestly
 
-* **Recording on Wayland uses evdev**, so it needs the `input` group and it
-  sees *relative* mouse motion, not the cursor position. Replay of relative
-  motion is only exact if pointer acceleration is the same (flat profile) on
-  both ends. Clicks, keys and scrolling are exact. Absolute moves in hand
-  written scripts are always exact. A compositor-side recorder (e.g. through
-  the InputCapture portal) is the natural next step.
+* **Wayland recording is relative-motion only** (see Recording). A
+  compositor-side recorder would need a new portal; nothing standard exists.
 * macOS: on Apple Silicon the APE plays natively through `cosmo_dlopen`.
   On Intel Macs cosmopolitan loads the binary itself, so Apple's dynamic
   linker is absent and `dlopen` is impossible (Rosetta does not change

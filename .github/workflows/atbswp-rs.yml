@@ -111,9 +111,10 @@ jobs:
             python3-dbus python3-gi dbus-daemon xvfb xinput xdotool
       - name: Format
         run: cargo fmt --check
-      - name: Clippy (advisory)
-        continue-on-error: true
-        run: cargo clippy -q -- -D warnings
+      - name: Generated key table is current
+        run: python3 player/tools/gen_keymap_rs.py --check
+      - name: Clippy
+        run: cargo clippy -q --all-targets -- -D warnings
       - name: Unit tests
         run: cargo test -q
       - name: Type-check the Slint GUI
@@ -130,6 +131,8 @@ jobs:
           cargo run -q -p atbswp-cli -- dump golden-macro.com
       - name: End-to-end on X11 (Xvfb + XTest, observed with xinput)
         run: sh tests/e2e_x11.sh golden-macro.com
+      - name: Record while playing on X11 (XRecord)
+        run: sh tests/e2e_x11_record.sh target/debug/atbswp golden-macro.com
       - uses: actions/upload-artifact@v4
         with:
           name: golden-macro
@@ -150,11 +153,16 @@ jobs:
         working-directory: .
     steps:
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: atbswp-rs/tests
       - uses: actions/download-artifact@v4
         with:
           name: golden-macro
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: atbswp-rs
+      - name: Build the recorder CLI natively
+        working-directory: atbswp-rs
+        run: cargo build -q -p atbswp-cli
       - name: Dump and dry-run (Windows)
         if: runner.os == 'Windows'
         shell: cmd
@@ -166,6 +174,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: pwsh atbswp-rs/tests/win/run.ps1 (Resolve-Path golden-macro.com)
+      - name: Record while playing (Windows hooks recorder)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh atbswp-rs/tests/win/record.ps1 (Resolve-Path atbswp-rs/target/debug/atbswp.exe) (Resolve-Path golden-macro.com)
       - name: Dump and dry-run (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -192,3 +204,18 @@ jobs:
           expected="$((200 * w / 1024)) $((300 * h / 768))"
           echo "expected:       $expected (screen ${w}x${h})"
           test "$after" = "$expected"
+      # Hosted macOS runners have no way to grant Input Monitoring, so the
+      # event-tap recorder is expected to be refused there; the step shows
+      # what happens and is advisory until a self-hosted Mac exists.
+      - name: Record while playing (macOS event tap, advisory)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: |
+          atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
+          REC=$!
+          sleep 2
+          ./golden-macro.com --speed 400
+          for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
+          kill $REC 2>/dev/null || true
+          cat rec.err
+          cat rec.txt && python3 atbswp-rs/tests/check_recording.py rec.txt

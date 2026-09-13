@@ -12,3 +12,4 @@ key left
 wait 50ms
 scroll down 1
 wait 50ms
+key f12   # stop key for the record-while-play tests (not recorded)

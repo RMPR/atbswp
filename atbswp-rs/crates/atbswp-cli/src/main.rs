@@ -13,6 +13,7 @@ atbswp - record mouse & keyboard macros, export them as portable executables
 
 usage:
   atbswp record  [-o FILE] [--stop-key KEY] [--screen WxH] [--min-move-interval MS]
+                 [--no-elevate]
   atbswp export  INPUT -o OUTPUT [--player PLAYER.COM] [--repeat N] [--speed PCT]
   atbswp dump    INPUT [--binary]
   atbswp play    INPUT [--repeat N] [--speed PCT] [--dry-run] [--player PLAYER.COM]
@@ -21,10 +22,12 @@ usage:
 INPUT may be a text script (.txt), a binary payload (.atbswp) or an exported
 executable; the format is detected automatically.
 
-record (Linux only) reads /dev/input/event* and needs membership of the
-`input` group or root.  It writes a text script by default (binary with -o
-FILE.atbswp) and stops on Ctrl-C or the stop key (default KEY_F12, which is
-not recorded).
+record captures the keyboard and mouse on X11 (XRecord), Windows (low-level
+hooks) and macOS (event tap, asks for Input Monitoring once).  On Wayland it
+reads /dev/input and, unless --no-elevate, asks for authorisation through
+pkexec when those devices are not readable.  It writes a text script by
+default (.atbswp = binary, .com/.exe = standalone executable) and stops on
+Ctrl-C or the stop key (default KEY_F12, which is not recorded).
 ";
 
 struct Args {
@@ -183,8 +186,17 @@ fn cmd_record(args: &Args) -> Result<(), String> {
         },
         min_move_interval_us: args.u32("min-move-interval")?.unwrap_or(10) * 1000,
         handle_signals: true,
+        allow_elevate: !args.has("no-elevate"),
     };
     let mut m = record::record(&opts)?;
+    if args.has("stdout-binary") {
+        // used by the pkexec-elevated helper: payload on stdout, nothing else
+        use std::io::Write;
+        std::io::stdout()
+            .write_all(&m.encode())
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
     apply_overrides(&mut m, args)?;
     let summary = format!(
         "{} events, {:.2}s",

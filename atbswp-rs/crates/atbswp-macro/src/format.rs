@@ -224,10 +224,11 @@ impl Macro {
         if exe::has_payload(bytes) {
             return exe::extract(bytes);
         }
-        if bytes.len() >= HEADER_LEN && bytes[0..2] == FORMAT_VERSION.to_le_bytes() {
-            if let Ok(m) = Self::decode(bytes) {
-                return Ok(m);
-            }
+        if bytes.len() >= HEADER_LEN
+            && bytes[0..2] == FORMAT_VERSION.to_le_bytes()
+            && let Ok(m) = Self::decode(bytes)
+        {
+            return Ok(m);
         }
         let s = std::str::from_utf8(bytes)
             .map_err(|_| Error::Invalid("not a payload, executable, or UTF-8 script".into()))?;

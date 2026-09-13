@@ -52,9 +52,9 @@ pub fn parse_duration_us(s: &str) -> Option<u32> {
 }
 
 fn fmt_duration(us: u32) -> String {
-    if us % 1_000_000 == 0 {
+    if us.is_multiple_of(1_000_000) {
         format!("{}s", us / 1_000_000)
-    } else if us % 1_000 == 0 {
+    } else if us.is_multiple_of(1_000) {
         format!("{}ms", us / 1_000)
     } else {
         format!("{us}us")

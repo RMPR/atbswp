@@ -168,12 +168,7 @@ fn main() {
             ui.set_status("Recording… press F12 or the record button to stop".into());
             let (weak, state) = (weak.clone(), state.clone());
             thread::spawn(move || {
-                let opts = record::Options {
-                    stop_key: Some(88), // KEY_F12
-                    screen: None,
-                    min_move_interval_us: 10_000,
-                    handle_signals: false,
-                };
+                let opts = record::Options::default(); // F12 stops, pkexec on Wayland
                 let result = record::record(&opts);
                 on_ui(&weak, move |ui| {
                     ui.set_recording(false);
