@@ -393,7 +393,8 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 				break;
 			}
 			case ATBSWP_EV_MOVE_REL:
-				inj->move_rel(e->x, e->y);
+				if (e->x || e->y)	/* a zero move only carries a delay */
+					inj->move_rel(e->x, e->y);
 				break;
 			case ATBSWP_EV_BUTTON_PRESS:
 			case ATBSWP_EV_BUTTON_RELEASE:

@@ -104,8 +104,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: atbswp-rs
-      - name: Install libei/libeis (EIS test server)
-        run: sudo apt-get update -q && sudo apt-get install -y -q libei-dev libeis1 libfontconfig1-dev
+      - name: Install test dependencies (libeis, D-Bus python, Xvfb, fontconfig)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libei-dev libeis1 libfontconfig1-dev \
+            python3-dbus python3-gi dbus-daemon xvfb xinput xdotool
       - name: Format
         run: cargo fmt --check
       - name: Clippy (advisory)
@@ -117,19 +120,23 @@ jobs:
         run: cargo check -q -p atbswp-gui
       - name: Build EIS sink
         run: make -C player build/eis_sink
-      - name: End-to-end through libei
+      - name: End-to-end through libei (LIBEI_SOCKET)
         run: sh tests/e2e.sh
-      - name: Export a sample macro for the other OSes
+      - name: End-to-end through the RemoteDesktop portal (fake portal on a private bus)
+        run: sh tests/e2e_portal.sh
+      - name: Export the golden macro
         run: |
-          printf 'move 100 100\nwait 20ms\nclick left\nkey a\nscroll down 1\n' > sample.txt
-          cargo run -q -p atbswp-cli -- export sample.txt -o sample-macro.com
-          cargo run -q -p atbswp-cli -- dump sample-macro.com
+          cargo run -q -p atbswp-cli -- export tests/golden.txt -o golden-macro.com
+          cargo run -q -p atbswp-cli -- dump golden-macro.com
+      - name: End-to-end on X11 (Xvfb + XTest, observed with xinput)
+        run: sh tests/e2e_x11.sh golden-macro.com
       - uses: actions/upload-artifact@v4
         with:
-          name: sample-macro
-          path: atbswp-rs/sample-macro.com
+          name: golden-macro
+          path: atbswp-rs/golden-macro.com
 
-  # The same exported file, unmodified, must start on every OS/arch.
+  # The same exported file, unmodified, must start on every OS/arch, and
+  # where the runner lets us observe input we check what the OS delivered.
   portable:
     name: run exported macro on ${{ matrix.os }}
     needs: rust
@@ -142,37 +149,45 @@ jobs:
       run:
         working-directory: .
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: atbswp-rs/tests
       - uses: actions/download-artifact@v4
         with:
-          name: sample-macro
+          name: golden-macro
       - name: Dump and dry-run (Windows)
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          copy sample-macro.com sample-macro.exe
-          sample-macro.exe --dump
-          sample-macro.exe --dry-run --speed 1000
-      - name: Inject for real (Windows, headless session accepts SendInput)
+          copy golden-macro.com golden-macro.exe
+          golden-macro.exe --dump
+          golden-macro.exe --dry-run --speed 1000
+      - name: Inject and observe with low-level hooks (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
-        run: sample-macro.exe --verbose --speed 1000
+        shell: pwsh
+        run: pwsh atbswp-rs/tests/win/run.ps1 (Resolve-Path golden-macro.com)
       - name: Dump and dry-run (macOS)
         if: runner.os == 'macOS'
         run: |
-          chmod +x sample-macro.com
+          chmod +x golden-macro.com
           uname -m
-          ./sample-macro.com --dump
-          ./sample-macro.com --dry-run --speed 1000
-      # No Accessibility permission on CI, so events are dropped by the OS,
-      # but the code path up to CGEventPost must run without error.
-      - name: Play (Apple Silicon, cosmo_dlopen path)
-        if: matrix.os == 'macos-latest'
-        run: ATBSWP_VERBOSE=1 ./sample-macro.com --speed 1000
-      - name: Play (Intel, delegates to bundled native helper)
-        if: matrix.os == 'macos-15-intel'
+          ./golden-macro.com --dump
+          ./golden-macro.com --dry-run --speed 1000
+      # Hosted runners cannot grant Accessibility, so the OS may drop the
+      # events; the code path up to CGEventPost must still run, and we
+      # report whether the pointer actually moved.
+      - name: Play and check the pointer (macOS)
+        if: runner.os == 'macOS'
         run: |
-          ATBSWP_VERBOSE=1 ./sample-macro.com --speed 1000 2> player.log; rc=$?
+          clang -framework ApplicationServices -o cursor atbswp-rs/tests/mac/cursor.c
+          echo "pointer before: $(./cursor)"
+          ATBSWP_VERBOSE=1 ./golden-macro.com --speed 400 2> player.log; rc=$?
           cat player.log
-          grep -q "delegating to native helper" player.log
-          ls -l "${TMPDIR:-/tmp}"/atbswp-helper-* 
+          echo "pointer after:  $(./cursor)"
+          if [ "$(uname -m)" = x86_64 ]; then
+            grep -q "delegating to native helper" player.log
+            grep -q "backend macos ready" player.log
+          else
+            grep -q "backend macos ready" player.log
+          fi
           exit $rc

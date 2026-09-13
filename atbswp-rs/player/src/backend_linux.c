@@ -8,6 +8,7 @@
  */
 #include <errno.h>
 #include <poll.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -562,9 +563,25 @@ static void save_restore_token(struct portal *P)
 {
 	if (!P->token_path[0] || !P->restore_token[0])
 		return;
+	/* best effort: create the state directory (one level) */
+	char dir[1024];
+	snprintf(dir, sizeof(dir), "%s", P->token_path);
+	char *slash = strrchr(dir, '/');
+	if (slash) {
+		*slash = 0;
+		char *parent = strrchr(dir, '/');
+		if (parent && parent != dir) {
+			*parent = 0;
+			mkdir(dir, 0700);
+			*parent = '/';
+		}
+		mkdir(dir, 0700);
+	}
 	FILE *f = fopen(P->token_path, "w");
-	if (!f)
-		return;	/* best effort; directory may not exist */
+	if (!f) {
+		LOGV("portal: cannot save restore token to %s\n", P->token_path);
+		return;
+	}
 	fprintf(f, "%s\n", P->restore_token);
 	fclose(f);
 }
