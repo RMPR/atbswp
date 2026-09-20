@@ -126,6 +126,7 @@ fn private_temp_dir() -> io::Result<PathBuf> {
     let base = std::env::temp_dir();
     for _ in 0..16 {
         let dir = base.join(format!("atbswp-{}", random_suffix()));
+        #[allow(unused_mut)]
         let mut b = fs::DirBuilder::new();
         #[cfg(unix)]
         {

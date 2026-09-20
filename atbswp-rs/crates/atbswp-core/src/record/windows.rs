@@ -6,7 +6,6 @@ use atbswp_macro::{Header, Macro, format};
 use std::sync::Mutex;
 use std::time::Instant;
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
 struct State {
@@ -86,11 +85,18 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
             GetSystemMetrics(SM_CYVIRTUALSCREEN) as u32,
         )
     });
+    let origin = unsafe {
+        (
+            GetSystemMetrics(SM_XVIRTUALSCREEN),
+            GetSystemMetrics(SM_YVIRTUALSCREEN),
+        )
+    };
     *STATE.lock().unwrap() = Some(State {
         b: Builder::new(opts),
         t0: Instant::now(),
         stopped: false,
         unmapped: 0,
+        origin,
     });
 
     let (kb, ms) = unsafe {
