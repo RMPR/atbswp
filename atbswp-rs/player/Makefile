@@ -7,8 +7,11 @@
 # cosmocc is downloaded into .cosmocc/ on first use unless COSMOCC points at
 # an existing toolchain's bin/cosmocc.
 
-COSMOCC_VERSION ?= latest
-COSMOCC_URL ?= https://cosmo.zip/pub/cosmocc/cosmocc.zip
+# Pinned toolchain, verified by checksum before it is unpacked (a moving
+# "latest" archive would make builds irreproducible and unverifiable).
+COSMOCC_VERSION ?= 4.0.2
+COSMOCC_SHA256 ?= 85b8c37a406d862e656ad4ec14be9f6ce474c1b436b9615e91a55208aced3f44
+COSMOCC_URL ?= https://cosmo.zip/pub/cosmocc/cosmocc-$(COSMOCC_VERSION).zip
 COSMOCC ?= .cosmocc/bin/cosmocc
 
 SRC := src/player.c src/keymap.c src/zipread.c src/backend_dry_run.c src/backend_linux.c \
@@ -22,9 +25,11 @@ COSMOFLAGS ?= -mcosmo -mtiny -s
 all: build/player.com
 
 $(COSMOCC):
-	@echo "Fetching cosmocc toolchain..."
+	@echo "Fetching cosmocc $(COSMOCC_VERSION)..."
 	@mkdir -p .cosmocc
 	@curl -fsSL -o .cosmocc/cosmocc.zip $(COSMOCC_URL)
+	@echo "$(COSMOCC_SHA256)  .cosmocc/cosmocc.zip" | sha256sum -c - >/dev/null || \
+		{ echo "cosmocc archive checksum mismatch; refusing to unpack"; rm -f .cosmocc/cosmocc.zip; exit 1; }
 	@cd .cosmocc && unzip -qo cosmocc.zip && rm cosmocc.zip
 	@test -x $(COSMOCC)
 

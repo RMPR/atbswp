@@ -8,8 +8,8 @@ normal native program; the exported macro does not depend on it.
 ```
  record (Rust, Linux)        export (Rust, any OS)           run (anywhere)
 ┌──────────────────┐   ┌────────────────────────────┐   ┌─────────────────────┐
-│ /dev/input evdev │──▶│ player.com + payload + ftr │──▶│ my-macro.com        │
-│ or a text script │   │ (APE, ~450 KiB, prebuilt)  │   │ Wayland: libei      │
+│ native recorder  │──▶│ player.com + /zip/macro.bin│──▶│ my-macro.com        │
+│ or a text script │   │ (APE, ~490 KiB, prebuilt)  │   │ Wayland: libei      │
 └──────────────────┘   └────────────────────────────┘   │ X11: XTest          │
                                                         │ Windows: SendInput  │
                                                         │ macOS: CoreGraphics │

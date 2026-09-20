@@ -54,6 +54,12 @@ for want, _ in expected:
         sys.exit(f"expected `{want}` at event {pos}, got {events[pos:pos+1]}; all events: {events}")
     pos += 1
 
+# Nothing but motion noise may follow (in particular not the F12 stop key).
+while pos < len(events) and events[pos].startswith("move "):
+    pos += 1
+if pos < len(events):
+    sys.exit(f"unexpected trailing events: {events[pos:]}")
+
 x, y = map(int, last_move.split()[1:3])
 ex, ey = 200, 300
 if scale:

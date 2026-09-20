@@ -186,7 +186,11 @@ fn cmd_record(args: &Args) -> Result<(), String> {
             }
             None => None,
         },
-        min_move_interval_us: args.u32("min-move-interval")?.unwrap_or(10) * 1000,
+        min_move_interval_us: args
+            .u32("min-move-interval")?
+            .unwrap_or(10)
+            .checked_mul(1000)
+            .ok_or("--min-move-interval is too large")?,
         handle_signals: true,
         allow_elevate: !args.has("no-elevate"),
         raw_from: args.value("raw-from").map(str::to_string),

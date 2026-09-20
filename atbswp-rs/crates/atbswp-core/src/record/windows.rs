@@ -14,6 +14,8 @@ struct State {
     t0: Instant,
     stopped: bool,
     unmapped: u32,
+    /// virtual-screen origin; recorded positions are relative to it
+    origin: (i32, i32),
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -52,7 +54,9 @@ unsafe extern "system" fn ms_hook(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
         let m = unsafe { &*(l as *const MSLLHOOKSTRUCT) };
         let hi = ((m.mouseData >> 16) & 0xffff) as u16 as i16 as i32;
         with_state(|st, now| match w as u32 {
-            WM_MOUSEMOVE => st.b.move_abs(now, m.pt.x, m.pt.y),
+            WM_MOUSEMOVE => {
+                st.b.move_abs(now, m.pt.x - st.origin.0, m.pt.y - st.origin.1)
+            }
             WM_LBUTTONDOWN => st.b.button(now, format::BTN_LEFT, true),
             WM_LBUTTONUP => st.b.button(now, format::BTN_LEFT, false),
             WM_RBUTTONDOWN => st.b.button(now, format::BTN_RIGHT, true),
@@ -96,6 +100,14 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
         )
     };
     if kb.is_null() || ms.is_null() {
+        unsafe {
+            if !kb.is_null() {
+                UnhookWindowsHookEx(kb);
+            }
+            if !ms.is_null() {
+                UnhookWindowsHookEx(ms);
+            }
+        }
         *STATE.lock().unwrap() = None;
         return Err("SetWindowsHookEx failed (is there an interactive desktop?)".into());
     }

@@ -58,8 +58,6 @@ enum {
 	KEYEVENTF_EXTENDEDKEY = 0x0001,
 	KEYEVENTF_KEYUP = 0x0002,
 	KEYEVENTF_SCANCODE = 0x0008,
-	SM_XVIRTUALSCREEN = 76,
-	SM_YVIRTUALSCREEN = 77,
 	SM_CXVIRTUALSCREEN = 78,
 	SM_CYVIRTUALSCREEN = 79,
 	XBUTTON1 = 1,
@@ -69,7 +67,7 @@ enum {
 static uint32_t (MSABI *pSendInput)(uint32_t, INPUT_ *, int);
 static int (MSABI *pGetSystemMetrics)(int);
 
-static int32_t vx, vy, vw, vh;
+static int32_t vw, vh;
 
 static int win_init(uint32_t *w, uint32_t *h)
 {
@@ -84,8 +82,6 @@ static int win_init(uint32_t *w, uint32_t *h)
 		LOGE("user32.dll is missing SendInput/GetSystemMetrics\n");
 		return -1;
 	}
-	vx = pGetSystemMetrics(SM_XVIRTUALSCREEN);
-	vy = pGetSystemMetrics(SM_YVIRTUALSCREEN);
 	vw = pGetSystemMetrics(SM_CXVIRTUALSCREEN);
 	vh = pGetSystemMetrics(SM_CYVIRTUALSCREEN);
 	if (vw <= 0 || vh <= 0) {
@@ -112,9 +108,11 @@ static void send_mouse(int32_t dx, int32_t dy, uint32_t data, uint32_t flags)
 
 static void win_move_abs(int32_t x, int32_t y)
 {
-	/* Normalise to 0..65535 across the virtual desktop. */
-	int64_t nx = ((int64_t)(x - vx) * 65535 + (vw - 1) / 2) / (vw - 1 ? vw - 1 : 1);
-	int64_t ny = ((int64_t)(y - vy) * 65535 + (vh - 1) / 2) / (vh - 1 ? vh - 1 : 1);
+	/* Recorded (and scaled) positions are relative to the virtual desktop's
+	 * origin, which is where MOUSEEVENTF_VIRTUALDESK's 0..65535 range starts,
+	 * so the origin is not subtracted again here. */
+	int64_t nx = ((int64_t)x * 65535 + (vw - 1) / 2) / (vw - 1 ? vw - 1 : 1);
+	int64_t ny = ((int64_t)y * 65535 + (vh - 1) / 2) / (vh - 1 ? vh - 1 : 1);
 	if (nx < 0) nx = 0;
 	if (ny < 0) ny = 0;
 	if (nx > 65535) nx = 65535;

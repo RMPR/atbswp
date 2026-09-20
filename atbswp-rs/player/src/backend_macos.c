@@ -23,6 +23,7 @@
 #ifdef HAVE_MAC
 
 typedef struct { double x, y; } CGPoint_;
+typedef struct { CGPoint_ origin; CGPoint_ size; } CGRect_;
 
 enum {
 	kCGEventLeftMouseDown = 1, kCGEventLeftMouseUp = 2,
@@ -38,8 +39,7 @@ enum {
 };
 
 static uint32_t (*pCGMainDisplayID)(void);
-static size_t (*pCGDisplayPixelsWide)(uint32_t);
-static size_t (*pCGDisplayPixelsHigh)(uint32_t);
+static CGRect_ (*pCGDisplayBounds)(uint32_t);
 static void *(*pCGEventCreate)(void *);
 static CGPoint_ (*pCGEventGetLocation)(void *);
 static void *(*pCGEventCreateMouseEvent)(void *, uint32_t, CGPoint_, uint32_t);
@@ -52,8 +52,7 @@ static void (*pCFRelease)(const void *);
 #ifdef NATIVE_MAC
 /* Prototypes declared by hand so the same enum names/types serve both builds. */
 extern uint32_t CGMainDisplayID(void);
-extern size_t CGDisplayPixelsWide(uint32_t);
-extern size_t CGDisplayPixelsHigh(uint32_t);
+extern CGRect_ CGDisplayBounds(uint32_t);
 extern void *CGEventCreate(void *);
 extern CGPoint_ CGEventGetLocation(void *);
 extern void *CGEventCreateMouseEvent(void *, uint32_t, CGPoint_, uint32_t);
@@ -66,7 +65,9 @@ extern bool AXIsProcessTrusted(void);
 #endif
 
 static CGPoint_ cur;
-static uint32_t held;		/* bitmask: 1 left, 2 right, 4 other */
+static bool held_left, held_right;
+static int held_other = -1;		/* CG button number (>= 2) of the latest held "other" button */
+static uint32_t held_other_mask;	/* bit per CG button number 2..31 */
 static int32_t scroll_acc_x, scroll_acc_y;
 
 #define LOADSYM(handle, var, name) \
@@ -77,8 +78,7 @@ static int mac_init(uint32_t *w, uint32_t *h)
 {
 #ifdef NATIVE_MAC
 	pCGMainDisplayID = CGMainDisplayID;
-	pCGDisplayPixelsWide = CGDisplayPixelsWide;
-	pCGDisplayPixelsHigh = CGDisplayPixelsHigh;
+	pCGDisplayBounds = CGDisplayBounds;
 	pCGEventCreate = CGEventCreate;
 	pCGEventGetLocation = CGEventGetLocation;
 	pCGEventCreateMouseEvent = CGEventCreateMouseEvent;
@@ -102,8 +102,7 @@ static int mac_init(uint32_t *w, uint32_t *h)
 		return -1;
 	}
 	LOADSYM(cg, pCGMainDisplayID, "CGMainDisplayID");
-	LOADSYM(cg, pCGDisplayPixelsWide, "CGDisplayPixelsWide");
-	LOADSYM(cg, pCGDisplayPixelsHigh, "CGDisplayPixelsHigh");
+	LOADSYM(cg, pCGDisplayBounds, "CGDisplayBounds");
 	LOADSYM(cg, pCGEventCreate, "CGEventCreate");
 	LOADSYM(cg, pCGEventGetLocation, "CGEventGetLocation");
 	LOADSYM(cg, pCGEventCreateMouseEvent, "CGEventCreateMouseEvent");
@@ -114,9 +113,11 @@ static int mac_init(uint32_t *w, uint32_t *h)
 	LOADSYM(cf, pCFRelease, "CFRelease");
 #endif
 
-	uint32_t disp = pCGMainDisplayID();
-	*w = (uint32_t)pCGDisplayPixelsWide(disp);
-	*h = (uint32_t)pCGDisplayPixelsHigh(disp);
+	/* Event locations are display points, so report the size in points too
+	 * (CGDisplayBounds), not Retina pixels, or scaling would double up. */
+	CGRect_ bounds = pCGDisplayBounds(pCGMainDisplayID());
+	*w = (uint32_t)bounds.size.x;
+	*h = (uint32_t)bounds.size.y;
 	void *probe = pCGEventCreate(0);
 	if (probe) {
 		cur = pCGEventGetLocation(probe);
@@ -139,9 +140,9 @@ static void mac_move_to(double x, double y)
 	cur.x = x;
 	cur.y = y;
 	uint32_t type = kCGEventMouseMoved, button = kCGMouseButtonLeft;
-	if (held & 1) type = kCGEventLeftMouseDragged;
-	else if (held & 2) { type = kCGEventRightMouseDragged; button = kCGMouseButtonRight; }
-	else if (held & 4) { type = kCGEventOtherMouseDragged; button = kCGMouseButtonCenter; }
+	if (held_left) type = kCGEventLeftMouseDragged;
+	else if (held_right) { type = kCGEventRightMouseDragged; button = kCGMouseButtonRight; }
+	else if (held_other >= 0) { type = kCGEventOtherMouseDragged; button = (uint32_t)held_other; }
 	post_mouse(type, button);
 }
 
@@ -150,23 +151,34 @@ static void mac_move_rel(int32_t dx, int32_t dy) { mac_move_to(cur.x + dx, cur.y
 
 static void mac_button(uint16_t code, bool pressed)
 {
-	uint32_t type, button, bit;
+	uint32_t type, button;
 	switch (code) {
 	case ATBSWP_BTN_LEFT:
-		type = pressed ? kCGEventLeftMouseDown : kCGEventLeftMouseUp; button = kCGMouseButtonLeft; bit = 1; break;
+		type = pressed ? kCGEventLeftMouseDown : kCGEventLeftMouseUp; button = kCGMouseButtonLeft; held_left = pressed; break;
 	case ATBSWP_BTN_RIGHT:
-		type = pressed ? kCGEventRightMouseDown : kCGEventRightMouseUp; button = kCGMouseButtonRight; bit = 2; break;
+		type = pressed ? kCGEventRightMouseDown : kCGEventRightMouseUp; button = kCGMouseButtonRight; held_right = pressed; break;
 	case ATBSWP_BTN_MIDDLE:
-		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = kCGMouseButtonCenter; bit = 4; break;
+		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = kCGMouseButtonCenter; break;
 	case ATBSWP_BTN_SIDE:
-		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = 3; bit = 4; break;
+		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = 3; break;
 	case ATBSWP_BTN_EXTRA:
-		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = 4; bit = 4; break;
+		type = pressed ? kCGEventOtherMouseDown : kCGEventOtherMouseUp; button = 4; break;
 	default:
 		LOGV("unmapped button %u\n", code);
 		return;
 	}
-	if (pressed) held |= bit; else held &= ~bit;
+	if (button >= 2) {
+		/* each "other" button is tracked on its own; drags use the latest one still held */
+		if (pressed) {
+			held_other_mask |= 1u << button;
+			held_other = (int)button;
+		} else {
+			held_other_mask &= ~(1u << button);
+			held_other = -1;
+			for (int b = 31; b >= 2; b--)
+				if (held_other_mask & (1u << b)) { held_other = b; break; }
+		}
+	}
 	void *ev = pCGEventCreateMouseEvent(0, type, cur, button);
 	if (!ev)
 		return;

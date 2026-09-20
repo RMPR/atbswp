@@ -1,17 +1,30 @@
 /* atbswp standalone macro player.
  *
  * This program is compiled once with cosmocc into an Actually Portable
- * Executable.  The recorder appends a macro payload (see macro_format.h) to
- * a copy of it; at startup we read our own file, find the footer, and replay
- * the events through the backend for the OS we happen to be running on.
+ * Executable, which is also a zip archive.  The recorder stores the macro
+ * payload (see macro_format.h) as the zip entry "macro.bin" in a copy of
+ * it; at startup we read /zip/macro.bin and replay the events through the
+ * backend for the OS we happen to be running on.
  */
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "player.h"
+
+/* Set by SIGINT/SIGTERM: finish the current event, release everything the
+ * macro still holds down, and exit.  A GUI stop or Ctrl-C therefore never
+ * leaves a modifier or mouse button stuck. */
+static volatile sig_atomic_t g_stop;
+static void on_signal(int sig)
+{
+	(void)sig;
+	g_stop = 1;
+}
 
 static int read_file(const char *path, uint8_t **out, size_t *len);
 
@@ -58,43 +71,78 @@ static char *GetProgramExecutableName(void)
 #include <unistd.h>
 #include <fcntl.h>
 
+/* FNV-1a over a buffer; identifies a helper build in its cache file name. */
+static uint64_t fnv1a(const uint8_t *p, size_t n)
+{
+	uint64_t h = 1469598103934665603ull;
+	for (size_t i = 0; i < n; i++)
+		h = (h ^ p[i]) * 1099511628211ull;
+	return h;
+}
+
 /* Intel Macs: cosmopolitan cannot dlopen CoreGraphics there, so the APE
  * carries a native x86-64 Mach-O build of this very program in its zip
- * section.  The kernel can only exec a real file, so copy it out to $TMPDIR
- * once (keyed by size) and exec it with our payload. */
+ * section.  The kernel can only exec a real file, so extract it into a
+ * private per-user cache directory and exec it with our payload.  The cache
+ * file is named by a content hash and its bytes are verified before use, the
+ * directory must be ours and mode 0700, and nothing follows symlinks, so a
+ * shared $TMPDIR is safe. */
 static int delegate_to_native_helper(const char *payload, int argc, char **argv)
 {
 	const char *src = "/zip/" ZIP_MAC_HELPER;
-	struct stat hs;
-	if (stat(src, &hs) != 0) {
+	uint8_t *buf;
+	size_t len;
+	if (access(src, R_OK) != 0) {
 		LOGE("Intel macOS needs the bundled native helper, which this player lacks\n");
 		return -1;
 	}
+	if (read_file(src, &buf, &len) != 0)
+		return -1;
+	uint64_t hash = fnv1a(buf, len);
+
 	const char *tmp = getenv("TMPDIR");
 	if (!tmp || !*tmp)
 		tmp = "/tmp";
-	char dst[4096];
-	snprintf(dst, sizeof(dst), "%s/atbswp-helper-%lld", tmp, (long long)hs.st_size);
-	struct stat cur;
-	if (stat(dst, &cur) != 0 || cur.st_size != hs.st_size) {
-		uint8_t *buf;
-		size_t len;
-		if (read_file(src, &buf, &len) != 0)
-			return -1;
-		int out = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0755);
-		if (out < 0 || write(out, buf, len) != (ssize_t)len) {
+	char dir[4096], dst[4200], tmpname[4300];
+	snprintf(dir, sizeof(dir), "%s/atbswp-%lld", tmp, (long long)getuid());
+	struct stat ds;
+	if (mkdir(dir, 0700) != 0 && errno != EEXIST) {
+		LOGE("cannot create %s: %s\n", dir, strerror(errno));
+		free(buf);
+		return -1;
+	}
+	if (lstat(dir, &ds) != 0 || !S_ISDIR(ds.st_mode) || ds.st_uid != getuid() || (ds.st_mode & 077)) {
+		LOGE("%s is not a private directory owned by us; refusing to use it\n", dir);
+		free(buf);
+		return -1;
+	}
+	snprintf(dst, sizeof(dst), "%s/helper-%016llx", dir, (unsigned long long)hash);
+
+	/* Reuse the cached copy only if its content is byte-identical. */
+	bool cached = false;
+	struct stat cs;
+	if (lstat(dst, &cs) == 0 && S_ISREG(cs.st_mode) && (uint64_t)cs.st_size == len) {
+		uint8_t *old;
+		size_t olen;
+		if (read_file(dst, &old, &olen) == 0) {
+			cached = olen == len && !memcmp(old, buf, len);
+			free(old);
+		}
+	}
+	if (!cached) {
+		snprintf(tmpname, sizeof(tmpname), "%s.%lld.tmp", dst, (long long)getpid());
+		int out = open(tmpname, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0700);
+		bool ok = out >= 0 && write(out, buf, len) == (ssize_t)len;
+		if (out >= 0)
+			ok = close(out) == 0 && ok;
+		if (!ok || rename(tmpname, dst) != 0) {
 			LOGE("cannot extract helper to %s: %s\n", dst, strerror(errno));
+			unlink(tmpname);
 			free(buf);
-			if (out >= 0) {
-				close(out);
-				unlink(dst);
-			}
 			return -1;
 		}
-		free(buf);
-		close(out);
-		chmod(dst, 0755);
 	}
+	free(buf);
 	LOGV("delegating to native helper %s\n", dst);
 	char **nargv = calloc((size_t)argc + 4, sizeof(char *));
 	int k = 0;
@@ -278,6 +326,19 @@ struct play_opts {
 	uint32_t start_delay_ms;
 };
 
+static void track_held(uint16_t *held, int *n, int cap, uint16_t code, bool press)
+{
+	for (int i = 0; i < *n; i++) {
+		if (held[i] == code) {
+			if (!press)
+				held[i] = held[--*n];
+			return;
+		}
+	}
+	if (press && *n < cap)
+		held[(*n)++] = code;
+}
+
 static const struct injector *pick_injector(bool dry_run)
 {
 	if (dry_run)
@@ -305,7 +366,13 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 
 	int rc = 0;
 	uint32_t speed = o->speed_percent ? o->speed_percent : 100;
-	for (uint32_t iter = 0; o->repeat == 0 || iter < o->repeat; iter++) {
+	/* what the macro currently holds down, released on stop or at the end */
+	enum { MAX_HELD = 64 };
+	uint16_t held_keys[MAX_HELD], held_btns[MAX_HELD];
+	int nkeys = 0, nbtns = 0;
+	signal(SIGINT, on_signal);
+	signal(SIGTERM, on_signal);
+	for (uint32_t iter = 0; (o->repeat == 0 || iter < o->repeat) && !g_stop; iter++) {
 		uint64_t t0 = now_us();
 		uint64_t cursor = 0;	/* virtual time in recorded microseconds */
 		for (size_t i = 0; i < m->n && rc == 0; i++) {
@@ -314,6 +381,10 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 			uint64_t target = t0 + cursor * 100 / speed;
 			for (;;) {
 				uint64_t now = now_us();
+				if (g_stop) {
+					rc = 3;
+					break;
+				}
 				if (now >= target)
 					break;
 				uint64_t left = target - now;
@@ -343,13 +414,19 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 					inj->move_rel(e->x, e->y);
 				break;
 			case ATBSWP_EV_BUTTON_PRESS:
-			case ATBSWP_EV_BUTTON_RELEASE:
-				inj->button(e->code, e->type == ATBSWP_EV_BUTTON_PRESS);
+			case ATBSWP_EV_BUTTON_RELEASE: {
+				bool press = e->type == ATBSWP_EV_BUTTON_PRESS;
+				inj->button(e->code, press);
+				track_held(held_btns, &nbtns, MAX_HELD, e->code, press);
 				break;
+			}
 			case ATBSWP_EV_KEY_PRESS:
-			case ATBSWP_EV_KEY_RELEASE:
-				inj->key(e->code, e->type == ATBSWP_EV_KEY_PRESS);
+			case ATBSWP_EV_KEY_RELEASE: {
+				bool press = e->type == ATBSWP_EV_KEY_PRESS;
+				inj->key(e->code, press);
+				track_held(held_keys, &nkeys, MAX_HELD, e->code, press);
 				break;
+			}
 			case ATBSWP_EV_SCROLL:
 				inj->scroll(e->x, e->y);
 				break;
@@ -360,11 +437,31 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 		if (rc)
 			break;
 	}
+	/* Never leave anything pressed, whether we stopped early or not. */
+	for (int i = nkeys - 1; i >= 0; i--)
+		inj->key(held_keys[i], false);
+	for (int i = nbtns - 1; i >= 0; i--)
+		inj->button(held_btns[i], false);
+	if (g_stop)
+		LOGV("stopped on request; %d keys and %d buttons released\n", nkeys, nbtns);
 	inj->shutdown();
 	return rc;
 }
 
 /* ---- main ------------------------------------------------------------ */
+
+/* Parse a whole decimal argument into a uint32_t, or exit with a message. */
+static uint32_t parse_u32(const char *opt, const char *text, uint32_t min)
+{
+	char *end = 0;
+	errno = 0;
+	unsigned long v = strtoul(text, &end, 10);
+	if (errno != 0 || end == text || *end || v > UINT32_MAX || v < min || strchr(text, '-')) {
+		LOGE("%s: expected a whole number%s, got `%s`\n", opt, min ? " greater than 0" : "", text);
+		exit(64);
+	}
+	return (uint32_t)v;
+}
 
 static void usage(const char *argv0)
 {
@@ -406,13 +503,13 @@ int main(int argc, char **argv)
 		} else if (!strcmp(a, "--payload") && i + 1 < argc) {
 			payload_path = argv[++i];
 		} else if (!strcmp(a, "--repeat") && i + 1 < argc) {
-			o.repeat = (uint32_t)strtoul(argv[++i], 0, 10);
+			o.repeat = parse_u32("--repeat", argv[++i], 0);
 			have_repeat = true;
 		} else if (!strcmp(a, "--speed") && i + 1 < argc) {
-			o.speed_percent = (uint32_t)strtoul(argv[++i], 0, 10);
+			o.speed_percent = parse_u32("--speed", argv[++i], 1);
 			have_speed = true;
 		} else if (!strcmp(a, "--start-delay") && i + 1 < argc) {
-			o.start_delay_ms = (uint32_t)strtoul(argv[++i], 0, 10);
+			o.start_delay_ms = parse_u32("--start-delay", argv[++i], 0);
 		} else {
 			LOGE("unknown argument: %s\n", a);
 			usage(argv[0]);

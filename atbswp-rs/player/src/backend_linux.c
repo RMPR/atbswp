@@ -7,6 +7,7 @@
  * Windows or macOS.
  */
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -548,22 +549,34 @@ static void load_restore_token(struct portal *P)
 	token_file_path(P->token_path, sizeof(P->token_path));
 	if (!P->token_path[0])
 		return;
-	FILE *f = fopen(P->token_path, "r");
-	if (!f)
+	/* The token grants input access: ignore it unless it is a regular file
+	 * we own that nobody else can read. */
+	int fd = open(P->token_path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0)
 		return;
-	if (fgets(P->restore_token, sizeof(P->restore_token), f)) {
-		char *nl = strchr(P->restore_token, '\n');
-		if (nl)
-			*nl = 0;
+	struct stat st;
+	if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_uid != getuid() || (st.st_mode & 077)) {
+		LOGV("portal: ignoring restore token %s (wrong owner or permissions)\n", P->token_path);
+		close(fd);
+		return;
 	}
-	fclose(f);
+	ssize_t n = read(fd, P->restore_token, sizeof(P->restore_token) - 1);
+	close(fd);
+	if (n <= 0) {
+		P->restore_token[0] = 0;
+		return;
+	}
+	P->restore_token[n] = 0;
+	char *nl = strpbrk(P->restore_token, "\r\n");
+	if (nl)
+		*nl = 0;
 }
 
 static void save_restore_token(struct portal *P)
 {
 	if (!P->token_path[0] || !P->restore_token[0])
 		return;
-	/* best effort: create the state directory (one level) */
+	/* best effort: create the state directory (up to two levels), private */
 	char dir[1024];
 	snprintf(dir, sizeof(dir), "%s", P->token_path);
 	char *slash = strrchr(dir, '/');
@@ -577,13 +590,24 @@ static void save_restore_token(struct portal *P)
 		}
 		mkdir(dir, 0700);
 	}
-	FILE *f = fopen(P->token_path, "w");
-	if (!f) {
-		LOGV("portal: cannot save restore token to %s\n", P->token_path);
+	/* write 0600 to a private temp name, then rename atomically; never
+	 * follow a symlink someone may have planted at the final path */
+	char tmp[1100];
+	snprintf(tmp, sizeof(tmp), "%s.%lld.tmp", P->token_path, (long long)getpid());
+	int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+	if (fd < 0) {
+		LOGV("portal: cannot save restore token to %s: %s\n", tmp, strerror(errno));
 		return;
 	}
-	fprintf(f, "%s\n", P->restore_token);
-	fclose(f);
+	size_t len = strlen(P->restore_token);
+	bool ok = write(fd, P->restore_token, len) == (ssize_t)len && write(fd, "\n", 1) == 1;
+	ok = close(fd) == 0 && ok;
+	struct stat st;
+	bool planted = lstat(P->token_path, &st) == 0 && S_ISLNK(st.st_mode);
+	if (!ok || planted || rename(tmp, P->token_path) != 0) {
+		LOGV("portal: cannot save restore token to %s\n", P->token_path);
+		unlink(tmp);
+	}
 }
 
 /* Returns an EIS fd, or -1. */

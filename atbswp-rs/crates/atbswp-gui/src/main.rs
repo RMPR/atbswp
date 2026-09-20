@@ -16,8 +16,11 @@ const HELP_URL: &str = "https://github.com/rmpr/atbswp";
 #[derive(Default)]
 struct State {
     macro_: Macro,
-    /// Currently running player, so Stop can kill it.
+    /// Currently running player, so Stop can end it.
     child: Option<Child>,
+    /// Set by Stop; checked by the play worker before and right after
+    /// spawning, so a Stop clicked before the child exists still wins.
+    cancel_play: bool,
     /// Where the current macro came from, used as default for Save.
     path: Option<PathBuf>,
 }
@@ -57,8 +60,9 @@ fn set_status(weak: &Weak<MainWindow>, msg: impl Into<String>) {
 }
 
 fn file_filter(d: rfd::FileDialog) -> rfd::FileDialog {
-    d.add_filter("Macro scripts", &["txt", "atbswp"])
-        .add_filter("Standalone macros", &["com", "exe"])
+    d.add_filter("Standalone macros", &["com", "exe"])
+        .add_filter("Macro scripts (editable text)", &["txt"])
+        .add_filter("Raw macro payloads (binary)", &["atbswp"])
         .add_filter("All files", &["*"])
 }
 
@@ -128,7 +132,8 @@ fn main() {
                         .set_title("Save macro")
                         .set_file_name(format!("{default_name}.com"))
                         .add_filter("Standalone macro (runs anywhere)", &["com", "exe"])
-                        .add_filter("Editable script", &["txt", "atbswp"])
+                        .add_filter("Editable script", &["txt"])
+                        .add_filter("Raw payload (binary)", &["atbswp"])
                 };
                 let Some(path) = dialog.save_file() else {
                     return;
@@ -197,8 +202,11 @@ fn main() {
         ui.on_play_toggled(move || {
             let Some(ui) = weak.upgrade() else { return };
             if ui.get_playing() {
-                if let Some(child) = state.lock().unwrap().child.as_mut() {
-                    let _ = child.kill();
+                let mut st = state.lock().unwrap();
+                st.cancel_play = true;
+                if let Some(child) = st.child.as_mut() {
+                    // SIGTERM lets the player release held keys/buttons first
+                    atbswp_core::stop_child(child, std::time::Duration::from_millis(1500));
                 }
                 ui.set_status("Stopped".into());
                 return;

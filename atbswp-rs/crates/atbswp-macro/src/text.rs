@@ -97,8 +97,20 @@ pub fn parse(src: &str) -> Result<Macro> {
                 m.header.screen_w = w.parse().map_err(|_| syntax(lineno, "bad width"))?;
                 m.header.screen_h = h.parse().map_err(|_| syntax(lineno, "bad height"))?;
             }
-            "repeat" => m.header.repeat = int(0)? as u32,
-            "speed" => m.header.speed_percent = int(0)? as u32,
+            "repeat" => {
+                m.header.repeat = arg(0)?.parse().map_err(|_| {
+                    syntax(lineno, "repeat expects a non-negative count (0 = forever)")
+                })?;
+            }
+            "speed" => {
+                let v: u32 = arg(0)?
+                    .parse()
+                    .map_err(|_| syntax(lineno, "speed expects a positive percentage"))?;
+                if v == 0 {
+                    return Err(syntax(lineno, "speed must be greater than 0"));
+                }
+                m.header.speed_percent = v;
+            }
             "wait" | "sleep" | "delay" => {
                 let d = parse_duration_us(arg(0)?)
                     .ok_or_else(|| syntax(lineno, format!("bad duration `{}`", args[0])))?;
@@ -140,11 +152,15 @@ pub fn parse(src: &str) -> Result<Macro> {
             }
             "scroll" => {
                 let first = arg(0)?;
+                let notches = |i: usize| -> Result<i32> {
+                    let n = int(i)? as i64 * SCROLL_NOTCH as i64;
+                    i32::try_from(n).map_err(|_| syntax(lineno, "scroll amount is too large"))
+                };
                 let (x, y) = match first.to_ascii_lowercase().as_str() {
-                    "up" => (0, -int(1)? * SCROLL_NOTCH),
-                    "down" => (0, int(1)? * SCROLL_NOTCH),
-                    "left" => (-int(1)? * SCROLL_NOTCH, 0),
-                    "right" => (int(1)? * SCROLL_NOTCH, 0),
+                    "up" => (0, -notches(1)?),
+                    "down" => (0, notches(1)?),
+                    "left" => (-notches(1)?, 0),
+                    "right" => (notches(1)?, 0),
                     _ => (int(0)?, int(1)?),
                 };
                 push(Event::scroll(x, y, take_delay(&mut pending_delay)));

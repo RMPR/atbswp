@@ -11,9 +11,19 @@ component ToolButton inherits Rectangle {
 
     width: 72px;
     height: 72px;
-    border-width: 1px;
-    border-color: active ? #7ea7e7 : #d8d8d8;
+    border-width: focus.has-focus ? 2px : 1px;
+    border-color: focus.has-focus ? #2a6fdb : active ? #7ea7e7 : #d8d8d8;
     background: !enabled ? #f0f0f0 : active ? #dbe9ff : touch.has-hover ? #f4f4f4 : #ffffff;
+
+    // Keyboard and assistive-technology access: a real button role and
+    // name, Tab focus, Enter/Space activation.
+    accessible-role: button;
+    accessible-label: root.tooltip;
+    accessible-enabled: root.enabled;
+    accessible-checkable: root.active;
+    accessible-checked: root.active;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+    forward-focus: focus;
 
     Image {
         source: root.icon;
@@ -21,9 +31,19 @@ component ToolButton inherits Rectangle {
         height: 40px;
         opacity: root.enabled ? 1 : 0.35;
     }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == Key.Return) {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
     touch := TouchArea {
         enabled: root.enabled;
-        clicked => { root.clicked(); }
+        clicked => { focus.focus(); root.clicked(); }
     }
     if touch.has-hover : Rectangle {
         y: parent.height - 2px;

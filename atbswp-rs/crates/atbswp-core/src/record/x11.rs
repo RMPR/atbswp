@@ -56,8 +56,8 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
 
     // request_stop() from another thread (or SIGINT in the CLI) is turned
     // into a RecordDisableContext, which ends the reply stream below.
+    let ctrl = std::sync::Arc::new(ctrl);
     let stopper = {
-        let ctrl = std::sync::Arc::new(ctrl);
         let c = ctrl.clone();
         let handle_signals = opts.handle_signals;
         std::thread::spawn(move || {
@@ -72,10 +72,8 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
             }
             let _ = c.record_disable_context(rc);
             let _ = c.sync();
-        });
-        ctrl
+        })
     };
-    let _ = &stopper;
 
     eprintln!(
         "atbswp: recording via XRecord; press {} to stop",
@@ -86,8 +84,12 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
     let mut clock = ServerClock::default();
     let mut b = Builder::new(opts);
     let replies = data.record_enable_context(rc).map_err(|e| e.to_string())?;
+    let fail = |e: String| {
+        super::request_stop();
+        e
+    };
     'outer: for reply in replies {
-        let reply = reply.map_err(|e| e.to_string())?;
+        let reply = reply.map_err(|e| fail(e.to_string()))?;
         if reply.category == START_OF_DATA || reply.client_swapped {
             continue;
         }
@@ -105,7 +107,11 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
             d = rest;
         }
     }
-    super::request_stop(); // let the stopper thread finish
+    // Whatever ended the loop, make the stopper thread finish and join it, so
+    // a later recording cannot race it on the shared stop flag.
+    super::request_stop();
+    let _ = stopper.join();
+    drop(ctrl);
     Ok(b.finish(Header {
         screen_w,
         screen_h,

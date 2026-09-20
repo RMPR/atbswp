@@ -14,6 +14,13 @@ struct CGPoint {
     y: f64,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct CGRect {
+    origin: CGPoint,
+    size: CGPoint, // width, height
+}
+
 type CGEventRef = *mut c_void;
 type CGEventTapCallBack = extern "C" fn(*mut c_void, u32, CGEventRef, *mut c_void) -> CGEventRef;
 
@@ -32,8 +39,7 @@ unsafe extern "C" {
     fn CGEventGetIntegerValueField(e: CGEventRef, field: u32) -> i64;
     fn CGEventGetFlags(e: CGEventRef) -> u64;
     fn CGMainDisplayID() -> u32;
-    fn CGDisplayPixelsWide(d: u32) -> usize;
-    fn CGDisplayPixelsHigh(d: u32) -> usize;
+    fn CGDisplayBounds(d: u32) -> CGRect;
     fn CGPreflightListenEventAccess() -> bool;
     fn CGRequestListenEventAccess() -> bool;
 }
@@ -176,9 +182,11 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
             }
         }
     }
+    // CGEventGetLocation reports display points, so the screen size must be
+    // in points too (CGDisplayBounds), not Retina pixels.
     let (screen_w, screen_h) = opts.screen.unwrap_or_else(|| unsafe {
-        let d = CGMainDisplayID();
-        (CGDisplayPixelsWide(d) as u32, CGDisplayPixelsHigh(d) as u32)
+        let b = CGDisplayBounds(CGMainDisplayID());
+        (b.size.x as u32, b.size.y as u32)
     });
     let mask: u64 = [
         LEFT_DOWN,
