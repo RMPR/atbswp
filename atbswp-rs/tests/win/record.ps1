@@ -12,7 +12,11 @@ Set-Location $work
 Remove-Item -ErrorAction Ignore rec.txt, rec.err
 
 $rec = Start-Process -PassThru -FilePath $Atbswp -ArgumentList "record", "-o", "rec.txt" -RedirectStandardError rec.err
-Start-Sleep -Seconds 2
+for ($i = 0; $i -lt 100; $i++) {
+    if ((Test-Path rec.err) -and (Select-String -Quiet "recording via" rec.err)) { break }
+    Start-Sleep -Milliseconds 100
+}
+Start-Sleep -Seconds 1
 if ($rec.HasExited) { Get-Content rec.err; throw "recorder exited early" }
 
 Copy-Item $Macro macro.exe

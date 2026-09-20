@@ -218,7 +218,8 @@ jobs:
         run: |
           atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
           REC=$!
-          sleep 2
+          for _ in $(seq 100); do grep -q "recording via" rec.err 2>/dev/null && break; sleep 0.1; done
+          sleep 1   # let the tap settle on slow runners
           ./golden-macro.com --speed 400
           for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
           if kill -0 $REC 2>/dev/null; then kill $REC; cat rec.err; echo "recorder did not stop on F12"; exit 1; fi
