@@ -29,6 +29,16 @@ if [ ! -S "${PIPEWIRE_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/nonexistent}}/${PIPEWIRE_
 	PIDS="$PIDS $!"
 	for _ in $(seq 50); do [ -S "$PIPEWIRE_RUNTIME_DIR/pipewire-0" ] && break; sleep 0.1; done
 	[ -S "$PIPEWIRE_RUNTIME_DIR/pipewire-0" ] || { echo "pipewire did not start"; cat "$TMP/pipewire.log"; exit 1; }
+	# Nodes are only linked by a session manager.
+	if command -v wireplumber >/dev/null; then
+		wireplumber > "$TMP/wireplumber.log" 2>&1 &
+	elif command -v pipewire-media-session >/dev/null; then
+		pipewire-media-session > "$TMP/wireplumber.log" 2>&1 &
+	else
+		echo "no PipeWire session manager (wireplumber) installed"; exit 1
+	fi
+	PIDS="$PIDS $!"
+	sleep 1
 fi
 
 cargo build -q -p atbswp-cli
@@ -72,7 +82,11 @@ wait "$REC" || { echo "recorder failed:"; cat "$TMP/rec.log" "$TMP/portal.log"; 
 PIDS=$(echo "$PIDS" | sed "s/ $REC//")
 cat "$TMP/rec.log"
 cat "$TMP/rec.txt"
-grep -q "screen 1024x768" "$TMP/rec.txt" || { echo "stream size not recorded"; exit 1; }
+grep -q "screen 1024x768" "$TMP/rec.txt" || {
+	echo "stream size not recorded (no format negotiated?)"
+	for f in src.log portal.out pipewire.log wireplumber.log; do echo "--- $f"; cat "$TMP/$f" 2>/dev/null | tail -30; done
+	exit 1
+}
 grep -q "SC SelectSources types=1 cursor_mode=4 persist_mode=2" "$TMP/portal.log"
 test "$(cat "$TMP/state/atbswp-screencast-token")" = "fake-sc-token"
 python3 tests/check_recording.py "$TMP/rec.txt"
