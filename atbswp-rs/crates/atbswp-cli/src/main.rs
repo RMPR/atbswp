@@ -189,7 +189,13 @@ fn cmd_record(args: &Args) -> Result<(), String> {
         min_move_interval_us: args.u32("min-move-interval")?.unwrap_or(10) * 1000,
         handle_signals: true,
         allow_elevate: !args.has("no-elevate"),
+        raw_from: args.value("raw-from").map(str::to_string),
     };
+    #[cfg(target_os = "linux")]
+    if args.has("stdout-raw") {
+        // pkexec-elevated helper: raw evdev events on stdout, parent merges
+        return record::wayland::stream_raw_to_stdout(&opts);
+    }
     let mut m = record::record(&opts)?;
     if args.has("stdout-binary") {
         // used by the pkexec-elevated helper: payload on stdout, nothing else
@@ -256,6 +262,7 @@ fn run() -> Result<(), String> {
         "stop-key",
         "screen",
         "min-move-interval",
+        "raw-from",
     ];
     let args = Args::parse(rest, &valued)?;
     if args.has("help") || args.has("h") {

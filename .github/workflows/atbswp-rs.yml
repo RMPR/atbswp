@@ -108,7 +108,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q libei-dev libeis1 libfontconfig1-dev \
-            python3-dbus python3-gi dbus-daemon xvfb xinput xdotool
+            python3-dbus python3-gi dbus-daemon xvfb xinput xdotool \
+            pipewire libpipewire-0.3-dev libspa-0.2-dev
       - name: Format
         run: cargo fmt --check
       - name: Generated key table is current
@@ -133,6 +134,12 @@ jobs:
         run: sh tests/e2e_x11.sh golden-macro.com
       - name: Record while playing on X11 (XRecord)
         run: sh tests/e2e_x11_record.sh target/debug/atbswp golden-macro.com
+      - name: PipeWire ABI facts match the hand-declared bindings
+        run: |
+          make -C player build/pw_abi_check build/pw_cursor_src
+          python3 tests/pw_abi_check.py player/build/pw_abi_check
+      - name: Wayland recorder (fake ScreenCast portal + PipeWire cursor metadata)
+        run: sh tests/e2e_wayland_record.sh
       - uses: actions/upload-artifact@v4
         with:
           name: golden-macro

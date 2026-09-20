@@ -6,7 +6,7 @@
 //! | X11      | XRecord extension                        | none                       |
 //! | Windows  | WH_KEYBOARD_LL / WH_MOUSE_LL hooks       | none                       |
 //! | macOS    | listen-only CGEventTap                   | Input Monitoring prompt    |
-//! | Wayland  | evdev (`/dev/input`)                     | polkit prompt via pkexec   |
+//! | Wayland  | ScreenCast cursor metadata + evdev       | consent dialog + pkexec    |
 //!
 //! Wayland has no passive input-observation API: the InputCapture portal
 //! (libei's receiver side) only delivers events after a pointer barrier is
@@ -18,9 +18,17 @@
 pub mod keymap;
 
 #[cfg(target_os = "linux")]
+mod dl;
+#[cfg(target_os = "linux")]
 mod evdev;
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "linux")]
+mod portal;
+#[cfg(target_os = "linux")]
+mod pw;
+#[cfg(target_os = "linux")]
+pub mod wayland;
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "linux")]
@@ -40,6 +48,9 @@ pub struct Options {
     pub handle_signals: bool,
     /// On Wayland, re-run through `pkexec` when /dev/input is not readable.
     pub allow_elevate: bool,
+    /// Test hook: read raw evdev events (helper line format) from this file
+    /// instead of /dev/input.
+    pub raw_from: Option<String>,
 }
 
 impl Default for Options {
@@ -50,6 +61,7 @@ impl Default for Options {
             min_move_interval_us: 10_000,
             handle_signals: false,
             allow_elevate: true,
+            raw_from: None,
         }
     }
 }
@@ -69,7 +81,11 @@ pub(crate) fn stop_requested() -> bool {
 pub fn backend_name() -> &'static str {
     #[cfg(target_os = "linux")]
     {
-        if prefer_x11() { "x11" } else { "evdev" }
+        if prefer_x11() {
+            "x11"
+        } else {
+            "wayland (screen-cast cursor + evdev)"
+        }
     }
     #[cfg(target_os = "windows")]
     {
@@ -104,12 +120,13 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
         if prefer_x11() {
             return x11::record(opts);
         }
-        match evdev::record(opts) {
-            Err(evdev::Error::Permission) if opts.allow_elevate => elevated::record(opts),
-            Err(evdev::Error::Permission) => Err(evdev::PERMISSION_HINT.into()),
-            Err(evdev::Error::Other(e)) => Err(e),
-            Ok(m) => Ok(m),
+        if std::env::var("ATBSWP_RECORDER").as_deref() == Ok("evdev") {
+            return evdev::record(opts).map_err(|e| match e {
+                evdev::Error::Permission => evdev::PERMISSION_HINT.to_string(),
+                evdev::Error::Other(m) => m,
+            });
         }
+        wayland::record(opts)
     }
     #[cfg(target_os = "windows")]
     {
@@ -126,57 +143,6 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
     }
 }
 
-#[cfg(target_os = "linux")]
-mod elevated {
-    //! Re-run the CLI recorder as root through pkexec and read the payload
-    //! back over stdout.  Only the tiny recorder runs privileged; the file
-    //! is written by the unprivileged parent.
-    use super::Options;
-    use atbswp_macro::Macro;
-    use std::path::PathBuf;
-    use std::process::{Command, Stdio};
-
-    fn cli_binary() -> PathBuf {
-        if let Ok(exe) = std::env::current_exe() {
-            if exe.file_name().is_some_and(|n| n == "atbswp") {
-                return exe;
-            }
-            let sibling = exe.with_file_name("atbswp");
-            if sibling.exists() {
-                return sibling;
-            }
-        }
-        PathBuf::from("atbswp")
-    }
-
-    pub fn record(opts: &Options) -> Result<Macro, String> {
-        let mut cmd = Command::new("pkexec");
-        cmd.arg(cli_binary())
-            .arg("record")
-            .arg("--stdout-binary")
-            .arg("--no-elevate");
-        if let Some(k) = opts.stop_key {
-            cmd.arg("--stop-key").arg(k.to_string());
-        }
-        if let Some((w, h)) = opts.screen {
-            cmd.arg("--screen").arg(format!("{w}x{h}"));
-        }
-        cmd.arg("--min-move-interval")
-            .arg((opts.min_move_interval_us / 1000).to_string());
-        eprintln!("atbswp: /dev/input is not readable; asking for authorisation via pkexec");
-        let out = cmd
-            .stdin(Stdio::null())
-            .stderr(Stdio::inherit())
-            .output()
-            .map_err(|e| format!("pkexec: {e} (is polkit installed?)"))?;
-        match out.status.code() {
-            Some(0) => Macro::decode(&out.stdout).map_err(|e| format!("elevated recorder: {e}")),
-            Some(126) | Some(127) => Err("authorisation was cancelled or refused".into()),
-            other => Err(format!("elevated recorder failed ({other:?})")),
-        }
-    }
-}
-
 /// Turns a stream of timestamped raw events into macro events, coalescing
 /// motion and handling the stop key.  Platform independent, unit tested.
 pub struct Builder {
@@ -187,6 +153,7 @@ pub struct Builder {
     stop_key: Option<u16>,
     pending_rel: Option<(u64, i32, i32)>,
     pending_abs: Option<(u64, u64, i32, i32)>, // first, last, x, y
+    last_abs: Option<(i32, i32)>,
 }
 
 impl Builder {
@@ -199,6 +166,7 @@ impl Builder {
             stop_key: opts.stop_key,
             pending_rel: None,
             pending_abs: None,
+            last_abs: None,
         }
     }
 
@@ -221,9 +189,12 @@ impl Builder {
             let d = self.delay_for(t);
             self.events.push(Event::move_rel(dx, dy, d));
         }
-        if let Some((_, last, x, y)) = self.pending_abs.take() {
+        if let Some((_, last, x, y)) = self.pending_abs.take()
+            && self.last_abs != Some((x, y))
+        {
             let d = self.delay_for(last);
             self.events.push(Event::move_abs(x, y, d));
+            self.last_abs = Some((x, y));
         }
     }
 
@@ -371,6 +342,23 @@ mod tests {
         );
         assert_eq!(m.events[4].delay_us, 10_000);
         assert_eq!(m.duration_us(), 49_000);
+    }
+
+    #[test]
+    fn repeated_absolute_position_is_not_duplicated() {
+        let mut b = Builder::new(&opts());
+        b.move_abs(0, 5, 5);
+        b.move_abs(20_000, 5, 5);
+        b.move_abs(40_000, 5, 5);
+        b.move_abs(60_000, 6, 6);
+        let m = b.finish(Header::default());
+        assert_eq!(
+            m.events
+                .iter()
+                .filter(|e| e.kind == EventType::MoveAbs)
+                .count(),
+            2
+        );
     }
 
     #[test]

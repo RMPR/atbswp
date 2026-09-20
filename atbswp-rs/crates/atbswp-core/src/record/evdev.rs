@@ -9,12 +9,79 @@ use std::io::{self, Read};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::sync::atomic::Ordering;
-use std::time::Instant;
 
 pub enum Error {
     Permission,
     Other(String),
 }
+
+/// One raw input event with a CLOCK_MONOTONIC timestamp, so events from
+/// different processes (the pkexec helper, the cursor stream) can be merged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Raw {
+    Key { code: u16, pressed: bool },
+    Button { code: u16, pressed: bool },
+    Rel { dx: i32, dy: i32 },
+    Scroll { x: i32, y: i32 },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RawEvent {
+    pub t_us: u64,
+    pub ev: Raw,
+}
+
+impl RawEvent {
+    /// Line form used between the elevated helper and its parent.
+    pub fn to_line(self) -> String {
+        match self.ev {
+            Raw::Key { code, pressed } => format!("K {} {} {}", self.t_us, code, pressed as u8),
+            Raw::Button { code, pressed } => format!("B {} {} {}", self.t_us, code, pressed as u8),
+            Raw::Rel { dx, dy } => format!("R {} {} {}", self.t_us, dx, dy),
+            Raw::Scroll { x, y } => format!("S {} {} {}", self.t_us, x, y),
+        }
+    }
+
+    pub fn from_line(line: &str) -> Option<RawEvent> {
+        let mut it = line.split_whitespace();
+        let kind = it.next()?;
+        let t_us = it.next()?.parse().ok()?;
+        let a: i64 = it.next()?.parse().ok()?;
+        let b: i64 = it.next()?.parse().ok()?;
+        let ev = match kind {
+            "K" => Raw::Key {
+                code: a as u16,
+                pressed: b != 0,
+            },
+            "B" => Raw::Button {
+                code: a as u16,
+                pressed: b != 0,
+            },
+            "R" => Raw::Rel {
+                dx: a as i32,
+                dy: b as i32,
+            },
+            "S" => Raw::Scroll {
+                x: a as i32,
+                y: b as i32,
+            },
+            _ => return None,
+        };
+        Some(RawEvent { t_us, ev })
+    }
+}
+
+pub fn monotonic_us() -> u64 {
+    let mut ts = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) };
+    ts.tv_sec as u64 * 1_000_000 + ts.tv_nsec as u64 / 1000
+}
+
+// EVIOCSCLOCKID = _IOW('E', 0xa0, int)
+const EVIOCSCLOCKID: libc::c_ulong = 0x4004_45a0;
 
 pub const PERMISSION_HINT: &str = "no readable input devices under /dev/input: run as root, \
     allow the pkexec prompt, or add yourself to the `input` group";
@@ -31,6 +98,7 @@ const REL_HWHEEL_HI_RES: u16 = 12;
 const BTN_MOUSE_FIRST: u16 = 0x110;
 const BTN_MOUSE_LAST: u16 = 0x117;
 const INPUT_EVENT_LEN: usize = 24; // struct input_event on 64-bit
+const KEY_MAX: u16 = 0x100;
 
 extern "C" fn on_sigint(_: libc::c_int) {
     super::STOP.store(true, Ordering::SeqCst);
@@ -60,15 +128,20 @@ fn open_devices() -> Result<Vec<Device>, Error> {
             .custom_flags(libc::O_NONBLOCK)
             .open(entry.path())
         {
-            Ok(file) => devs.push(Device {
-                file,
-                buf: vec![],
-                wheel: 0,
-                hwheel: 0,
-                wheel_hi: 0,
-                hwheel_hi: 0,
-                has_hi_res: false,
-            }),
+            Ok(file) => {
+                // timestamps on CLOCK_MONOTONIC so they line up with other sources
+                let clock: libc::c_int = libc::CLOCK_MONOTONIC;
+                unsafe { libc::ioctl(file.as_raw_fd(), EVIOCSCLOCKID as _, &clock) };
+                devs.push(Device {
+                    file,
+                    buf: vec![],
+                    wheel: 0,
+                    hwheel: 0,
+                    wheel_hi: 0,
+                    hwheel_hi: 0,
+                    has_hi_res: false,
+                })
+            }
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => denied += 1,
             Err(_) => {}
         }
@@ -83,7 +156,10 @@ fn open_devices() -> Result<Vec<Device>, Error> {
     Ok(devs)
 }
 
-pub fn record(opts: &Options) -> Result<Macro, Error> {
+/// Read raw events from all devices until the stop key is pressed or
+/// [`super::request_stop`] is called.  `sink` receives every event; the
+/// stop key itself is not delivered.
+pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> {
     let mut devs = open_devices()?;
     if opts.handle_signals {
         unsafe {
@@ -91,14 +167,6 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
             libc::signal(libc::SIGTERM, on_sigint as *const () as usize);
         }
     }
-    let stop_name = opts.stop_key.and_then(keys::key_name).unwrap_or("Ctrl-C");
-    eprintln!(
-        "atbswp: recording from {} evdev devices; press {stop_name} to stop",
-        devs.len()
-    );
-
-    let t0 = Instant::now();
-    let mut b = Builder::new(opts);
     let mut pollfds: Vec<libc::pollfd> = devs
         .iter()
         .map(|d| libc::pollfd {
@@ -132,11 +200,17 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
                 Err(_) => continue, // would block, or device went away
             };
             dev.buf.extend_from_slice(&chunk[..got]);
-            let now_us = t0.elapsed().as_micros() as u64;
             let mut consumed = 0;
             while dev.buf.len() - consumed >= INPUT_EVENT_LEN {
                 let e = &dev.buf[consumed..consumed + INPUT_EVENT_LEN];
                 consumed += INPUT_EVENT_LEN;
+                let sec = i64::from_le_bytes(e[0..8].try_into().unwrap());
+                let usec = i64::from_le_bytes(e[8..16].try_into().unwrap());
+                let t_us = if sec > 0 {
+                    (sec as u64) * 1_000_000 + usec as u64
+                } else {
+                    monotonic_us()
+                };
                 let typ = u16::from_le_bytes([e[16], e[17]]);
                 let code = u16::from_le_bytes([e[18], e[19]]);
                 let value = i32::from_le_bytes(e[20..24].try_into().unwrap());
@@ -147,14 +221,32 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
                         }
                         let pressed = value != 0;
                         if (BTN_MOUSE_FIRST..=BTN_MOUSE_LAST).contains(&code) {
-                            b.button(now_us, code, pressed);
-                        } else if code < 0x100 && b.key(now_us, code, pressed) {
-                            break 'outer;
+                            sink(RawEvent {
+                                t_us,
+                                ev: Raw::Button { code, pressed },
+                            });
+                        } else if code < KEY_MAX {
+                            if Some(code) == opts.stop_key {
+                                if pressed {
+                                    break 'outer;
+                                }
+                                continue;
+                            }
+                            sink(RawEvent {
+                                t_us,
+                                ev: Raw::Key { code, pressed },
+                            });
                         }
                     }
                     EV_REL => match code {
-                        REL_X => b.motion(now_us, value, 0),
-                        REL_Y => b.motion(now_us, 0, value),
+                        REL_X => sink(RawEvent {
+                            t_us,
+                            ev: Raw::Rel { dx: value, dy: 0 },
+                        }),
+                        REL_Y => sink(RawEvent {
+                            t_us,
+                            ev: Raw::Rel { dx: 0, dy: value },
+                        }),
                         REL_WHEEL => dev.wheel += value,
                         REL_HWHEEL => dev.hwheel += value,
                         REL_WHEEL_HI_RES => {
@@ -175,7 +267,10 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
                             (dev.hwheel * 120, -dev.wheel * 120)
                         };
                         if sx != 0 || sy != 0 {
-                            b.scroll(now_us, sx, sy);
+                            sink(RawEvent {
+                                t_us,
+                                ev: Raw::Scroll { x: sx, y: sy },
+                            });
                         }
                         dev.wheel = 0;
                         dev.hwheel = 0;
@@ -188,6 +283,36 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
             dev.buf.drain(..consumed);
         }
     }
+    Ok(())
+}
+
+/// Feed a raw event into a [`Builder`]; motion is relative here.
+pub fn apply(b: &mut Builder, e: &RawEvent, ignore_motion: bool) {
+    match e.ev {
+        Raw::Key { code, pressed } => {
+            b.key(e.t_us, code, pressed);
+        }
+        Raw::Button { code, pressed } => b.button(e.t_us, code, pressed),
+        Raw::Rel { dx, dy } => {
+            if !ignore_motion {
+                b.motion(e.t_us, dx, dy)
+            }
+        }
+        Raw::Scroll { x, y } => b.scroll(e.t_us, x, y),
+    }
+}
+
+/// Standalone evdev recording: keys, buttons, scroll and relative motion.
+/// Check whether /dev/input is readable without keeping devices open.
+pub fn open_probe() -> Result<(), Error> {
+    open_devices().map(|_| ())
+}
+
+pub fn record(opts: &Options) -> Result<Macro, Error> {
+    let stop_name = opts.stop_key.and_then(keys::key_name).unwrap_or("Ctrl-C");
+    eprintln!("atbswp: recording from evdev; press {stop_name} to stop");
+    let mut b = Builder::new(opts);
+    run(opts, |e| apply(&mut b, &e, false))?;
     let (screen_w, screen_h) = opts.screen.unwrap_or((0, 0));
     Ok(b.finish(Header {
         screen_w,

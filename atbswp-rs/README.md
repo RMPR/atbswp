@@ -123,20 +123,31 @@ Recording is native and unprivileged wherever the platform allows it:
 | X11 | XRecord extension | none | absolute |
 | Windows | `WH_KEYBOARD_LL` / `WH_MOUSE_LL` hooks | none | absolute |
 | macOS | listen-only `CGEventTap` | Input Monitoring, prompted once per app | absolute |
-| Wayland | evdev (`/dev/input`) | polkit prompt via `pkexec` per recording, or root, or the `input` group | relative only |
+| Wayland | ScreenCast portal cursor metadata (PipeWire) for the pointer, evdev for keys, buttons and wheel | screen-share consent dialog once (token persisted); polkit prompt via `pkexec` for evdev unless you can read `/dev/input` | absolute |
 
-Wayland is the odd one out because no compositor protocol lets a client
-watch input passively. libei's receiver side, fed by the InputCapture portal,
-is built for Input-Leap-style tools: it only delivers events after the
-pointer crosses a barrier you define, and while it does the desktop stops
-receiving them. So on Wayland the recorder reads evdev, and when `/dev/input`
-is not readable it re-runs itself through `pkexec`, which shows the desktop's
-authorisation dialog; only the small recorder runs privileged and the file is
-written by the unprivileged parent. `--no-elevate` disables that. Because
-evdev sees devices rather than the cursor, Wayland recordings contain
-relative motion, which replays exactly only with the same pointer
-acceleration (flat profile) on both ends. Clicks, keys and scrolling are
-exact everywhere.
+Wayland has no protocol for watching input passively. libei's receiver side,
+fed by the InputCapture portal, is built for Input-Leap-style tools: it only
+delivers events after the pointer crosses a barrier you define, and while it
+does the desktop stops receiving them. So the Wayland recorder combines two
+legitimate sources on one `CLOCK_MONOTONIC` timeline:
+
+* **Pointer:** a ScreenCast portal session with `cursor_mode = metadata`.
+  The compositor streams the cursor position as `spa_meta_cursor` on each
+  PipeWire buffer; the recorder reads only that metadata and never maps the
+  pixels. This is the same mechanism screen recorders use to draw the
+  cursor, so it works on GNOME, KDE and wlroots compositors, and it yields
+  exact absolute positions in the captured monitor's pixel space.
+* **Keys, buttons, wheel:** evdev. When `/dev/input` is not readable the
+  recorder re-runs itself through `pkexec`; only that small helper runs as
+  root, streaming raw events back over a pipe, and the unprivileged parent
+  merges and writes the file. `--no-elevate` disables that.
+
+`libpipewire-0.3.so.0` and `libdbus-1.so.3` are loaded with `dlopen` at run
+time, so neither is a build or link dependency and the X11 and evdev paths
+still work on a machine without PipeWire. The hand-declared bindings are
+checked against the real headers in CI (`tests/pw_abi_check.c`). If the
+cursor stream cannot be set up, the recorder says so and falls back to
+relative evdev motion.
 
 Key codes are stored as evdev codes; `player/src/keymap.c` is the single
 table for Windows scancodes and macOS virtual keycodes, and
@@ -172,7 +183,8 @@ diffs it against `tests/golden.txt`.
 | XTest | Xvfb, `xinput test-xi2 --root`, `xdotool getmouselocation` | `tests/e2e_x11.sh`, CI |
 | Windows SendInput | `tests/win/HookListener.cs`, low-level keyboard/mouse hooks | `tests/win/run.ps1`, CI |
 | macOS CoreGraphics, arm64 dlopen and Intel helper | pointer position via `tests/mac/cursor.c` | CI (hosted runners honour mouse events; keys are not observed) |
-| Recorders (XRecord, Windows hooks) | `atbswp record` itself, while the golden macro plays; `tests/check_recording.py` diffs the result | `tests/e2e_x11_record.sh`, `tests/win/record.ps1`, CI |
+| Recorders (XRecord, Windows hooks, macOS tap) | `atbswp record` itself, while the golden macro plays; `tests/check_recording.py` diffs the result | `tests/e2e_x11_record.sh`, `tests/win/record.ps1`, CI |
+| Wayland recorder | fake ScreenCast portal + `tests/pw_cursor_src.c`, a PipeWire node emitting scripted cursor metadata; raw events fed over a FIFO | `tests/e2e_wayland_record.sh`, local + CI |
 
 ```sh
 cargo test                 # format, text and footer round trips
@@ -188,8 +200,10 @@ exported file on Windows, Apple Silicon and Intel macOS runners.
 
 ## Limitations, honestly
 
-* **Wayland recording is relative-motion only** (see Recording). A
-  compositor-side recorder would need a new portal; nothing standard exists.
+* Wayland recording captures the monitor chosen in the screen-share dialog;
+  positions are relative to that monitor. Without a cursor stream it falls
+  back to relative evdev motion, which is only exact under the same pointer
+  acceleration.
 * macOS: on Apple Silicon the APE plays natively through `cosmo_dlopen`.
   On Intel Macs cosmopolitan loads the binary itself, so Apple's dynamic
   linker is absent and `dlopen` is impossible (Rosetta does not change

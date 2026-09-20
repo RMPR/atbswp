@@ -59,6 +59,16 @@ build/eis_sink: tests/eis_sink.c
 	@mkdir -p build
 	$(CC) -std=gnu11 -Wall -O1 -I tests/third_party -o $@ $< -l:libeis.so.1
 
+# Test-only PipeWire tools (need libpipewire-0.3 headers, e.g. pipewire-devel).
+PW_CFLAGS ?= $(shell pkg-config --cflags libpipewire-0.3 2>/dev/null)
+PW_LIBS ?= $(shell pkg-config --libs libpipewire-0.3 2>/dev/null || echo -lpipewire-0.3)
+build/pw_cursor_src: ../tests/pw_cursor_src.c
+	@mkdir -p build
+	$(CC) -std=gnu11 -Wall -O1 $(PW_CFLAGS) -o $@ $< $(PW_LIBS)
+build/pw_abi_check: ../tests/pw_abi_check.c
+	@mkdir -p build
+	$(CC) -std=gnu11 -Wall -O1 $(PW_CFLAGS) -o $@ $< $(PW_LIBS)
+
 test: build/player.com
 	sh tests/smoke.sh build/player.com
 
