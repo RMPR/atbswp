@@ -112,6 +112,68 @@ struct Device {
     wheel_hi: i32,
     hwheel_hi: i32,
     has_hi_res: bool,
+    /// Present for touchpads: synthesises tap-to-click and clickfinger.
+    touchpad: Option<super::touchpad::Touchpad>,
+}
+
+const EV_ABS: u16 = 3;
+
+// EVIOCGBIT(EV_KEY, len) = _IOC(_IOC_READ, 'E', 0x20 + EV_KEY, len)
+fn eviocgbit_key(len: usize) -> libc::c_ulong {
+    (2u64 << 30 | (len as u64) << 16 | (b'E' as u64) << 8 | 0x21) as libc::c_ulong
+}
+// EVIOCGABS(abs) = _IOR('E', 0x40 + abs, struct input_absinfo)  (24 bytes)
+fn eviocgabs(abs: u16) -> libc::c_ulong {
+    (2u64 << 30 | 24u64 << 16 | (b'E' as u64) << 8 | (0x40 + abs as u64)) as libc::c_ulong
+}
+
+/// Detect a touchpad (reports BTN_TOOL_FINGER) and size its motion threshold.
+fn probe_touchpad(file: &File) -> Option<super::touchpad::Touchpad> {
+    let mut bits = [0u8; 0x300 / 8];
+    let r = unsafe {
+        libc::ioctl(
+            file.as_raw_fd(),
+            eviocgbit_key(bits.len()) as _,
+            bits.as_mut_ptr(),
+        )
+    };
+    if r < 0 {
+        return None;
+    }
+    let has = |code: u16| bits[(code / 8) as usize] & (1 << (code % 8)) != 0;
+    if !has(super::touchpad::BTN_TOOL_FINGER) || !has(super::touchpad::BTN_TOUCH) {
+        return None;
+    }
+    #[repr(C)]
+    struct AbsInfo {
+        value: i32,
+        minimum: i32,
+        maximum: i32,
+        fuzz: i32,
+        flat: i32,
+        resolution: i32,
+    }
+    let mut info = AbsInfo {
+        value: 0,
+        minimum: 0,
+        maximum: 0,
+        fuzz: 0,
+        flat: 0,
+        resolution: 0,
+    };
+    let r = unsafe {
+        libc::ioctl(
+            file.as_raw_fd(),
+            eviocgabs(super::touchpad::ABS_X) as _,
+            &mut info,
+        )
+    };
+    let (res, range) = if r < 0 {
+        (0, 1000)
+    } else {
+        (info.resolution, (info.maximum - info.minimum).max(1))
+    };
+    Some(super::touchpad::Touchpad::new(res, range))
 }
 
 fn open_devices() -> Result<Vec<Device>, Error> {
@@ -132,6 +194,7 @@ fn open_devices() -> Result<Vec<Device>, Error> {
                 // timestamps on CLOCK_MONOTONIC so they line up with other sources
                 let clock: libc::c_int = libc::CLOCK_MONOTONIC;
                 unsafe { libc::ioctl(file.as_raw_fd(), EVIOCSCLOCKID as _, &clock) };
+                let touchpad = probe_touchpad(&file);
                 devs.push(Device {
                     file,
                     buf: vec![],
@@ -140,6 +203,7 @@ fn open_devices() -> Result<Vec<Device>, Error> {
                     wheel_hi: 0,
                     hwheel_hi: 0,
                     has_hi_res: false,
+                    touchpad,
                 })
             }
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => denied += 1,
@@ -220,7 +284,13 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
                             continue; // autorepeat
                         }
                         let pressed = value != 0;
-                        if (BTN_MOUSE_FIRST..=BTN_MOUSE_LAST).contains(&code) {
+                        if let Some(tp) = dev.touchpad.as_mut()
+                            && (code == BTN_MOUSE_FIRST
+                                || super::touchpad::Touchpad::is_tool_key(code))
+                        {
+                            // decided at the end of the frame, see EV_SYN
+                            tp.key(code, pressed);
+                        } else if (BTN_MOUSE_FIRST..=BTN_MOUSE_LAST).contains(&code) {
                             sink(RawEvent {
                                 t_us,
                                 ev: Raw::Button { code, pressed },
@@ -259,7 +329,24 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
                         }
                         _ => {}
                     },
+                    EV_ABS => {
+                        if let Some(tp) = dev.touchpad.as_mut() {
+                            tp.abs(code, value);
+                        }
+                    }
                     EV_SYN => {
+                        if let Some(tp) = dev.touchpad.as_mut() {
+                            for out in tp.frame(t_us) {
+                                let (code, pressed) = match out {
+                                    super::touchpad::Out::Press(c) => (c, true),
+                                    super::touchpad::Out::Release(c) => (c, false),
+                                };
+                                sink(RawEvent {
+                                    t_us,
+                                    ev: Raw::Button { code, pressed },
+                                });
+                            }
+                        }
                         // Frame boundary: emit scroll. Kernel sign: +wheel = up.
                         let (sx, sy) = if dev.has_hi_res {
                             (dev.hwheel_hi, -dev.wheel_hi)

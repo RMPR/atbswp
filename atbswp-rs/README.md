@@ -137,6 +137,12 @@ legitimate sources on one `CLOCK_MONOTONIC` timeline:
   pixels. This is the same mechanism screen recorders use to draw the
   cursor, so it works on GNOME, KDE and wlroots compositors, and it yields
   exact absolute positions in the captured monitor's pixel space.
+* **Touchpads:** evdev reports touches, not clicks, so the recorder applies
+  libinput's rules itself: a touch shorter than 180 ms that moves less than
+  about 2 mm is a tap-to-click, and a physical clickpad press with two or
+  three fingers resting on the pad is a right or middle click (the
+  clickfinger method, the default on Apple touchpads). Tap-and-drag is not
+  reproduced.
 * **Keys, buttons, wheel:** evdev. When `/dev/input` is not readable the
   recorder re-runs itself through `pkexec`; only that small helper runs as
   root, streaming raw events back over a pipe, and the unprivileged parent
