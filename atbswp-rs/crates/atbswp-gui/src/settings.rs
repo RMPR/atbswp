@@ -15,6 +15,45 @@ pub struct Settings {
     pub recording_timer: u32,
     /// motion coalescing interval in ms ("mouse speed" in the Python version)
     pub mouse_speed_ms: u32,
+    /// UI language code ("" = follow the system locale)
+    pub language: String,
+}
+
+/// Bundled UI languages, in the order of the settings combo box (index 0 =
+/// system default).  The Python version shipped the same set.
+pub const LANGUAGES: [&str; 9] = ["", "de", "en", "es", "fr", "it", "ja", "pl", "tr"];
+
+pub fn language_index(code: &str) -> i32 {
+    LANGUAGES
+        .iter()
+        .position(|l| *l == code)
+        .map(|i| i as i32)
+        .unwrap_or(0)
+}
+
+/// The language to use: the setting, else the system locale if we bundle it.
+pub fn effective_language(setting: &str) -> &'static str {
+    if let Some(l) = LANGUAGES.iter().find(|l| !l.is_empty() && **l == setting) {
+        return l;
+    }
+    let locale = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .find_map(|v| {
+            std::env::var(v)
+                .ok()
+                .filter(|s| !s.is_empty() && s != "C" && s != "POSIX")
+        })
+        .unwrap_or_default();
+    let code = locale
+        .split(['_', '.', '@'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    LANGUAGES
+        .iter()
+        .find(|l| !l.is_empty() && **l == code)
+        .copied()
+        .unwrap_or("en")
 }
 
 impl Default for Settings {
@@ -27,6 +66,7 @@ impl Default for Settings {
             always_on_top: true,
             recording_timer: 0,
             mouse_speed_ms: 21,
+            language: String::new(),
         }
     }
 }
@@ -76,6 +116,7 @@ impl Settings {
                 "always_on_top" => s.always_on_top = v == "true",
                 "recording_timer" => s.recording_timer = v.parse().unwrap_or(0),
                 "mouse_speed_ms" => s.mouse_speed_ms = v.parse().unwrap_or(21).max(1),
+                "language" => s.language = v.to_string(),
                 _ => {}
             }
         }

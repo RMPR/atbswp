@@ -32,6 +32,14 @@ struct State {
 
 type Shared = Arc<Mutex<State>>;
 
+/// How a playback ended; turned into a translated status on the UI thread.
+enum Outcome {
+    Done,
+    Stopped,
+    Exit(String),
+    Quiet,
+}
+
 fn show_macro(ui: &MainWindow, m: &Macro) {
     ui.set_event_count(m.events.len() as i32);
     ui.set_duration_s(m.duration_us() as f32 / 1e6);
@@ -46,6 +54,15 @@ fn show_settings(ui: &SettingsWindow, s: &settings::Settings) {
     ui.set_stay_on_top(s.always_on_top);
     ui.set_recording_timer(s.recording_timer as i32);
     ui.set_mouse_speed(s.mouse_speed_ms as i32);
+    ui.set_language_index(settings::language_index(&s.language));
+}
+
+/// Switch every @tr() string in both windows, live.
+fn apply_language(setting: &str) {
+    let lang = settings::effective_language(setting);
+    if let Err(e) = slint::select_bundled_translation(lang) {
+        eprintln!("atbswp: no bundled translation for {lang}: {e}");
+    }
 }
 
 /// Read the settings window back.
@@ -58,6 +75,7 @@ fn settings_from_ui(ui: &SettingsWindow) -> settings::Settings {
         always_on_top: ui.get_stay_on_top(),
         recording_timer: ui.get_recording_timer().max(0) as u32,
         mouse_speed_ms: ui.get_mouse_speed().max(1) as u32,
+        language: settings::LANGUAGES[ui.get_language_index().clamp(0, 8) as usize].to_string(),
     }
 }
 
@@ -95,6 +113,7 @@ fn main() {
     let state: Shared = Arc::default();
     {
         let loaded = settings::Settings::load();
+        apply_language(&loaded.language);
         show_settings(&settings_win, &loaded);
         settings_win.set_version(env!("CARGO_PKG_VERSION").into());
         ui.set_stay_on_top(loaded.always_on_top);
@@ -138,7 +157,7 @@ fn main() {
                         drop(st);
                         on_ui(&weak, move |ui| {
                             show_macro(&ui, &m);
-                            ui.set_status(format!("Loaded {}", path.display()).into());
+                            ui.set_status(ui.invoke_msg_loaded(path.display().to_string().into()));
                         });
                     }
                     Err(e) => set_status(&weak, e),
@@ -178,7 +197,11 @@ fn main() {
                 match atbswp_core::save_as(&path, &m, None) {
                     Ok(()) => {
                         state.lock().unwrap().path = Some(path.clone());
-                        set_status(&weak, format!("Wrote {}", path.display()));
+                        let p = path.display().to_string();
+                        on_ui(&weak, move |ui| {
+                            let m = ui.invoke_msg_wrote(p.into());
+                            ui.set_status(m);
+                        });
                     }
                     Err(e) => set_status(&weak, e),
                 }
@@ -193,7 +216,7 @@ fn main() {
             let Some(ui) = weak.upgrade() else { return };
             if ui.get_recording() {
                 record::request_stop();
-                ui.set_status("Stopping…".into());
+                ui.set_status(ui.invoke_msg_stopping());
                 return;
             }
             let s = state.lock().unwrap().settings.clone();
@@ -236,7 +259,7 @@ fn main() {
                         Ok(mut m) => {
                             apply_settings(&state.lock().unwrap().settings, &mut m);
                             show_macro(&ui, &m);
-                            ui.set_status(format!("Recorded {} events", m.events.len()).into());
+                            ui.set_status(ui.invoke_msg_recorded(m.events.len() as i32));
                             let mut st = state.lock().unwrap();
                             st.macro_ = m;
                             st.path = None;
@@ -260,7 +283,7 @@ fn main() {
                     // SIGTERM lets the player release held keys/buttons first
                     atbswp_core::stop_child(child, std::time::Duration::from_millis(1500));
                 }
-                ui.set_status("Stopped".into());
+                ui.set_status(ui.invoke_msg_stopped());
                 return;
             }
             let mut m = state.lock().unwrap().macro_.clone();
@@ -273,26 +296,38 @@ fn main() {
                 }
             };
             ui.set_playing(true);
-            ui.set_status("Playing…".into());
+            ui.set_status(ui.invoke_msg_playing());
+            state.lock().unwrap().cancel_play = false;
             let (weak, state) = (weak.clone(), state.clone());
             thread::spawn(move || {
                 let outcome = (|| {
                     let tmp = atbswp_core::TempExe::new(&m, &player)?;
-                    let child = atbswp_core::spawn_ape(&tmp.path, &[])
+                    if state.lock().unwrap().cancel_play {
+                        return Ok(Outcome::Stopped);
+                    }
+                    let mut child = atbswp_core::spawn_ape(&tmp.path, &[])
                         .map_err(|e| format!("running player: {e}"))?;
-                    state.lock().unwrap().child = Some(child);
+                    let mut st = state.lock().unwrap();
+                    if st.cancel_play {
+                        // Stop was clicked while we were spawning
+                        atbswp_core::stop_child(&mut child, std::time::Duration::from_millis(1500));
+                        let _ = child.wait();
+                        return Ok(Outcome::Stopped);
+                    }
+                    st.child = Some(child);
+                    drop(st);
                     loop {
                         let mut st = state.lock().unwrap();
                         let Some(child) = st.child.as_mut() else {
-                            break Ok(String::new());
+                            break Ok(Outcome::Quiet);
                         };
                         match child.try_wait() {
                             Ok(Some(status)) => {
                                 st.child = None;
                                 break Ok(if status.success() {
-                                    "Done".into()
+                                    Outcome::Done
                                 } else {
-                                    format!("Player exited with {status}")
+                                    Outcome::Exit(status.to_string())
                                 });
                             }
                             Ok(None) => {}
@@ -308,8 +343,12 @@ fn main() {
                 on_ui(&weak, move |ui| {
                     ui.set_playing(false);
                     match outcome {
-                        Ok(msg) if !msg.is_empty() => ui.set_status(msg.into()),
-                        Ok(_) => {}
+                        Ok(Outcome::Done) => ui.set_status(ui.invoke_msg_done()),
+                        Ok(Outcome::Stopped) => ui.set_status(ui.invoke_msg_stopped()),
+                        Ok(Outcome::Exit(st)) => {
+                            ui.set_status(ui.invoke_msg_player_exit(st.into()))
+                        }
+                        Ok(Outcome::Quiet) => {}
                         Err(e) => ui.set_status(e.into()),
                     }
                 });
@@ -329,9 +368,19 @@ fn main() {
             let mut st = state.lock().unwrap();
             apply_settings(&s, &mut st.macro_);
             if let Err(e) = s.save() {
-                ui.set_status(format!("Cannot save settings: {e}").into());
+                ui.set_status(ui.invoke_msg_settings_error(e.to_string().into()));
             }
             st.settings = s;
+        });
+    }
+    {
+        let (sw, state) = (settings_win.as_weak(), state.clone());
+        settings_win.on_language_changed(move || {
+            let Some(w) = sw.upgrade() else { return };
+            let s = settings_from_ui(&w);
+            apply_language(&s.language);
+            let _ = s.save();
+            state.lock().unwrap().settings = s;
         });
     }
     {

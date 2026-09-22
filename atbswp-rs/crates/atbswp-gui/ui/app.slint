@@ -67,7 +67,7 @@ export component MainWindow inherits Window {
     in property <bool> recording: false;
     in property <bool> playing: false;
     in property <bool> busy: recording || playing;
-    in property <string> status: "Ready";
+    in property <string> status: @tr("Ready");
     in property <int> event-count: 0;
     in property <float> duration-s: 0;
     in property <string> version: "";
@@ -81,16 +81,31 @@ export component MainWindow inherits Window {
     callback help-clicked;
     callback settings-clicked;
 
+    // Status-bar messages set from Rust, kept here so they are translatable.
+    public pure function msg-loaded(path: string) -> string { @tr("Loaded {}", path) }
+    public pure function msg-wrote(path: string) -> string { @tr("Wrote {}", path) }
+    public pure function msg-recording(hotkey: string) -> string { @tr("Recording… press {} or the record button to stop", hotkey) }
+    public pure function msg-recording-in(seconds: int, hotkey: string) -> string { @tr("Recording starts in {}s… press {} or the record button to stop", seconds, hotkey) }
+    public pure function msg-recorded(count: int) -> string { @tr("Recorded {} events", count) }
+    public pure function msg-stopping() -> string { @tr("Stopping…") }
+    public pure function msg-playing() -> string { @tr("Playing…") }
+    public pure function msg-stopped() -> string { @tr("Stopped") }
+    public pure function msg-done() -> string { @tr("Done") }
+    public pure function msg-player-exit(status: string) -> string { @tr("Player exited with {}", status) }
+    public pure function msg-opened(url: string) -> string { @tr("Opened {}", url) }
+    public pure function msg-settings-error(err: string) -> string { @tr("Cannot save settings: {}", err) }
+    public pure function msg-no-player() -> string { @tr("No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER") }
+
     VerticalLayout {
         spacing: 0px;
         HorizontalLayout {
             spacing: 0px;
-            ToolButton { icon: @image-url("../../../../atbswp/img/file-upload.png"); tooltip: "Load macro"; enabled: !root.busy; clicked => { root.load-clicked(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/save.png"); tooltip: "Save macro (standalone executable)"; enabled: !root.busy && root.event-count > 0; clicked => { root.save-clicked(); } }
-            ToolButton { icon: root.recording ? @image-url("../../../../atbswp/img/icon-recording.png") : @image-url("../../../../atbswp/img/video.png"); tooltip: root.recording ? "Stop recording" : "Record"; active: root.recording; enabled: !root.playing; clicked => { root.record-toggled(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/play-circle.png"); tooltip: root.playing ? "Stop" : "Play"; active: root.playing; enabled: !root.recording && (root.event-count > 0 || root.playing); clicked => { root.play-toggled(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/cog.png"); tooltip: "Settings"; clicked => { root.settings-clicked(); } }
-            ToolButton { icon: @image-url("../../../../atbswp/img/question-circle.png"); tooltip: "Help (video tutorial)"; clicked => { root.help-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/file-upload.png"); tooltip: @tr("Load macro"); enabled: !root.busy; clicked => { root.load-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/save.png"); tooltip: @tr("Save macro (standalone executable)"); enabled: !root.busy && root.event-count > 0; clicked => { root.save-clicked(); } }
+            ToolButton { icon: root.recording ? @image-url("../../../../atbswp/img/icon-recording.png") : @image-url("../../../../atbswp/img/video.png"); tooltip: root.recording ? @tr("Stop recording") : @tr("Record"); active: root.recording; enabled: !root.playing; clicked => { root.record-toggled(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/play-circle.png"); tooltip: root.playing ? @tr("Stop") : @tr("Play"); active: root.playing; enabled: !root.recording && (root.event-count > 0 || root.playing); clicked => { root.play-toggled(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/cog.png"); tooltip: @tr("Settings"); clicked => { root.settings-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/question-circle.png"); tooltip: @tr("Help (video tutorial)"); clicked => { root.help-clicked(); } }
         }
         Rectangle {
             height: 26px;
@@ -99,7 +114,7 @@ export component MainWindow inherits Window {
                 padding-left: 8px; padding-right: 8px;
                 Text { text: root.status; vertical-alignment: center; overflow: elide; }
                 Text {
-                    text: root.event-count == 0 ? "" : "\{root.event-count} events · \{round(root.duration-s * 10) / 10}s";
+                    text: root.event-count == 0 ? "" : @tr("{} events · {}s", root.event-count, round(root.duration-s * 10) / 10);
                     vertical-alignment: center; horizontal-alignment: right; color: #555555;
                 }
             }
@@ -110,12 +125,13 @@ export component MainWindow inherits Window {
 // The settings live in their own window (a popup would be clipped to the
 // 100 px tall toolbar).  Same entries as the Python version's menu.
 export component SettingsWindow inherits Window {
-    title: "atbswp settings";
+    title: @tr("atbswp settings");
     icon: @image-url("../../../../atbswp/img/icon.png");
     default-font-size: 13px;
     background: #ffffff;
-    width: 420px;
-    height: 400px;
+    // wide enough for the longest translated labels
+    width: 560px;
+    height: 440px;
 
     in-out property <bool> fast-play: false;
     in-out property <bool> infinite: false;
@@ -125,47 +141,60 @@ export component SettingsWindow inherits Window {
     in-out property <int> recording-timer: 0;
     in-out property <int> mouse-speed: 21;
     in property <string> version: "";
+    // index into LANGUAGES in settings.rs (0 = follow the system locale)
+    in-out property <int> language-index: 0;
 
     callback changed;
+    callback language-changed;
     callback about-clicked;
     callback exit-clicked;
 
     VerticalBox {
         spacing: 8px;
         alignment: start;
-        CheckBox { text: "Play speed: fast (2×)"; checked <=> root.fast-play; toggled => { root.changed(); } }
-        CheckBox { text: "Infinite playback"; checked <=> root.infinite; toggled => { root.changed(); } }
+        CheckBox { text: @tr("Play speed: fast (2×)"); checked <=> root.fast-play; toggled => { root.changed(); } }
+        CheckBox { text: @tr("Infinite playback"); checked <=> root.infinite; toggled => { root.changed(); } }
         HorizontalBox {
             padding: 0px;
-            Text { text: "Repeat count"; vertical-alignment: center; horizontal-stretch: 1; }
+            Text { text: @tr("Repeat count"); vertical-alignment: center; horizontal-stretch: 1; }
             SpinBox { minimum: 1; maximum: 999; value <=> root.repeat; enabled: !root.infinite; edited => { root.changed(); } }
         }
         HorizontalBox {
             padding: 0px;
-            Text { text: "Recording hotkey (stops recording)"; vertical-alignment: center; horizontal-stretch: 1; }
+            Text { text: @tr("Recording hotkey (stops recording)"); vertical-alignment: center; horizontal-stretch: 1; }
             ComboBox {
                 model: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
                 current-index <=> root.hotkey-index;
                 selected => { root.changed(); }
             }
         }
-        CheckBox { text: "Always on top"; checked <=> root.stay-on-top; toggled => { root.changed(); } }
+        CheckBox { text: @tr("Always on top"); checked <=> root.stay-on-top; toggled => { root.changed(); } }
         HorizontalBox {
             padding: 0px;
-            Text { text: "Recording timer (seconds before start)"; vertical-alignment: center; horizontal-stretch: 1; }
+            Text { text: @tr("Recording timer (seconds before start)"); vertical-alignment: center; horizontal-stretch: 1; }
             SpinBox { minimum: 0; maximum: 999; value <=> root.recording-timer; edited => { root.changed(); } }
         }
         HorizontalBox {
             padding: 0px;
-            Text { text: "Mouse speed (ms between recorded moves)"; vertical-alignment: center; horizontal-stretch: 1; }
+            Text { text: @tr("Mouse speed (ms between recorded moves)"); vertical-alignment: center; horizontal-stretch: 1; }
             SpinBox { minimum: 1; maximum: 9999; value <=> root.mouse-speed; edited => { root.changed(); } }
+        }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Language"); vertical-alignment: center; horizontal-stretch: 1; }
+            ComboBox {
+                // native names on purpose: readable whatever the current language
+                model: [@tr("System default"), "Deutsch", "English", "Español", "Français", "Italiano", "日本語", "Polski", "Türkçe"];
+                current-index <=> root.language-index;
+                selected => { root.language-changed(); }
+            }
         }
         Rectangle { height: 1px; background: #e0e0e0; }
         HorizontalBox {
             padding: 0px;
             Text { text: "atbswp \{root.version}"; vertical-alignment: center; color: #555555; horizontal-stretch: 1; }
-            Button { text: "About"; clicked => { root.about-clicked(); } }
-            Button { text: "Exit"; clicked => { root.exit-clicked(); } }
+            Button { text: @tr("About"); clicked => { root.about-clicked(); } }
+            Button { text: @tr("Exit"); clicked => { root.exit-clicked(); } }
         }
     }
 }

@@ -120,6 +120,8 @@ jobs:
         run: cargo test -q
       - name: Type-check the Slint GUI
         run: cargo check -q -p atbswp-gui
+      - name: Every @tr string is translated in every bundled language
+        run: python3 tests/check_translations.py
       - name: Build EIS sink
         run: make -C player build/eis_sink
       - name: End-to-end through libei (LIBEI_SOCKET)
