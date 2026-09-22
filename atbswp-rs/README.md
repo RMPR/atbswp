@@ -24,7 +24,7 @@ normal native program; the exported macro does not depend on it.
 | `crates/atbswp-macro` | Dependency-free library: binary payload format, text script format, stored-zip embedding. Mirrors `player/src/macro_format.h`. |
 | `crates/atbswp-cli` | `atbswp` command: `record`, `export`, `dump`, `play`, `player`. |
 | `crates/atbswp-core` | Recording backends (XRecord, Windows hooks, macOS event tap, evdev), player embedding, export and launch helpers shared by CLI and GUI. |
-| `crates/atbswp-gui` | Slint front end: the classic one-row toolbar (load, save, record, play, compile, settings, help). Built with `cargo build -p atbswp-gui`; not a default member because Slint takes a few minutes to compile. |
+| `crates/atbswp-gui` | Slint front end: the classic one-row toolbar (load, save, record, play, settings, help). Save writes the standalone executable; the settings dialog mirrors the Python version's menu (fast play, infinite playback, repeat count, recording hotkey, always on top, recording timer, mouse speed) and persists to `~/.config/atbswp/gui.cfg`; Help opens the same video tutorial as the Python version. Built with `cargo build -p atbswp-gui`; not a default member because Slint takes a few minutes to compile. |
 | `tests/e2e.sh` | Exports a macro and replays it through libei into a real EIS server. No compositor needed. |
 
 ## Build
