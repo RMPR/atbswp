@@ -213,16 +213,23 @@ jobs:
           test "$after" = "$expected"
       # Hosted macOS runners turn out to allow a listen-only event tap, so
       # the recorder is checked for real here too.
+      # A listen-only event tap on a hosted runner occasionally receives
+      # nothing at all (environmental, not deterministic), so the step gets
+      # one retry; a genuine regression fails both attempts.
       - name: Record while playing (macOS event tap recorder)
         if: runner.os == 'macOS'
         run: |
-          atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
-          REC=$!
-          for _ in $(seq 100); do grep -q "recording via" rec.err 2>/dev/null && break; sleep 0.1; done
-          sleep 1   # let the tap settle on slow runners
-          ./golden-macro.com --speed 400
-          for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
-          if kill -0 $REC 2>/dev/null; then kill $REC; cat rec.err; echo "recorder did not stop on F12"; exit 1; fi
-          cat rec.err
-          cat rec.txt
-          python3 atbswp-rs/tests/check_recording.py rec.txt
+          attempt() {
+            rm -f rec.txt rec.err
+            atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
+            REC=$!
+            for _ in $(seq 100); do grep -q "recording via" rec.err 2>/dev/null && break; sleep 0.1; done
+            sleep 1   # let the tap settle on slow runners
+            ./golden-macro.com --speed 400
+            for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
+            if kill -0 $REC 2>/dev/null; then kill $REC; cat rec.err; echo "recorder did not stop on F12"; return 1; fi
+            cat rec.err
+            cat rec.txt
+            python3 atbswp-rs/tests/check_recording.py rec.txt
+          }
+          attempt || { echo "retrying once (event tap received nothing)"; sleep 3; attempt; }
