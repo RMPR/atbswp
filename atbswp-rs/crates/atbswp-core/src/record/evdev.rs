@@ -365,7 +365,7 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
             // take whole events out of the buffer, keep any partial tail
             let whole = dev.buf.len() / INPUT_EVENT_LEN * INPUT_EVENT_LEN;
             let events: Vec<u8> = dev.buf.drain(..whole).collect();
-            for e in events.chunks_exact(INPUT_EVENT_LEN) {
+            for e in events.as_chunks::<INPUT_EVENT_LEN>().0 {
                 if let Flow::Stop = dev.handle(opts, e, &mut sink) {
                     return Ok(());
                 }
