@@ -479,75 +479,84 @@ static void usage(const char *argv0)
 	       "  --version, --help\n", argv0);
 }
 
-int main(int argc, char **argv)
-{
-	bool do_dump = false, dry_run = false;
-	const char *payload_path = 0;
-	struct play_opts o = { 0 };
-	bool have_repeat = false, have_speed = false;
+struct cli {
+	bool dump, dry_run, have_repeat, have_speed;
+	const char *payload_path;
+	struct play_opts play;
+};
 
+/* Parse argv into `c`; exits on bad usage. */
+static void parse_args(int argc, char **argv, struct cli *c)
+{
 	for (int i = 1; i < argc; i++) {
 		const char *a = argv[i];
+		const char *next = i + 1 < argc ? argv[i + 1] : 0;
 		if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
 			usage(argv[0]);
-			return 0;
+			exit(0);
 		} else if (!strcmp(a, "--version")) {
 			printf("atbswp player %s\n", ATBSWP_PLAYER_VERSION);
-			return 0;
+			exit(0);
 		} else if (!strcmp(a, "--dump")) {
-			do_dump = true;
+			c->dump = true;
 		} else if (!strcmp(a, "--dry-run")) {
-			dry_run = true;
+			c->dry_run = true;
 		} else if (!strcmp(a, "--verbose") || !strcmp(a, "-v")) {
 			verbose = 1;
-		} else if (!strcmp(a, "--payload") && i + 1 < argc) {
-			payload_path = argv[++i];
-		} else if (!strcmp(a, "--repeat") && i + 1 < argc) {
-			o.repeat = parse_u32("--repeat", argv[++i], 0);
-			have_repeat = true;
-		} else if (!strcmp(a, "--speed") && i + 1 < argc) {
-			o.speed_percent = parse_u32("--speed", argv[++i], 1);
-			have_speed = true;
-		} else if (!strcmp(a, "--start-delay") && i + 1 < argc) {
-			o.start_delay_ms = parse_u32("--start-delay", argv[++i], 0);
+		} else if (!strcmp(a, "--payload") && next) {
+			c->payload_path = argv[++i];
+		} else if (!strcmp(a, "--repeat") && next) {
+			c->play.repeat = parse_u32("--repeat", argv[++i], 0);
+			c->have_repeat = true;
+		} else if (!strcmp(a, "--speed") && next) {
+			c->play.speed_percent = parse_u32("--speed", argv[++i], 1);
+			c->have_speed = true;
+		} else if (!strcmp(a, "--start-delay") && next) {
+			c->play.start_delay_ms = parse_u32("--start-delay", argv[++i], 0);
 		} else {
 			LOGE("unknown argument: %s\n", a);
 			usage(argv[0]);
-			return 64;
+			exit(64);
 		}
 	}
 	if (getenv("ATBSWP_VERBOSE"))
 		verbose = 1;
+}
 
-	struct macro m = { 0 };
-	if (payload_path) {
-		uint8_t *buf;
-		size_t len, off, size;
-		if (read_file(payload_path, &buf, &len) != 0)
-			return 1;
-		/* Either a raw payload or an exported macro (zip). */
-		int rc;
-		if (zip_find(buf, len, ZIP_MACRO, &off, &size)) {
-			free(buf);
-			rc = load_from_zip_file(payload_path, &m);
-		} else {
-			rc = parse_payload(buf, len, &m);
-			free(buf);
-		}
-		if (rc)
-			return 1;
-	} else {
+/* Load the macro: from --payload (raw payload or exported macro), else from
+ * our own zip section. */
+static int load_payload(const struct cli *c, struct macro *m)
+{
+	if (!c->payload_path) {
 #ifdef __COSMOPOLITAN__
-		if (load_from_self(&m) != 0)
-			return 1;
+		return load_from_self(m);
 #else
 		const char *self = GetProgramExecutableName();
-		if (!self || load_from_zip_file(self, &m) != 0)
-			return 1;
+		return self ? load_from_zip_file(self, m) : -1;
 #endif
 	}
+	uint8_t *buf;
+	size_t len, off, size;
+	if (read_file(c->payload_path, &buf, &len) != 0)
+		return -1;
+	int rc;
+	if (zip_find(buf, len, ZIP_MACRO, &off, &size))
+		rc = parse_payload(buf + off, size, m);
+	else
+		rc = parse_payload(buf, len, m);
+	free(buf);
+	return rc;
+}
 
-	if (do_dump) {
+int main(int argc, char **argv)
+{
+	struct cli c = { 0 };
+	parse_args(argc, argv, &c);
+
+	struct macro m = { 0 };
+	if (load_payload(&c, &m) != 0)
+		return 1;
+	if (c.dump) {
 		dump(&m);
 		free(m.events);
 		return 0;
@@ -557,8 +566,8 @@ int main(int argc, char **argv)
 		struct stat hs;
 		if (stat("/zip/" ZIP_MAC_HELPER, &hs) == 0)
 			LOGV("bundled Intel macOS helper present (%lld bytes)\n", (long long)hs.st_size);
-		if (!dry_run && IsXnu() && !IsXnuSilicon()) {
-			const char *self = payload_path ? payload_path : GetProgramExecutableName();
+		if (!c.dry_run && IsXnu() && !IsXnuSilicon()) {
+			const char *self = c.payload_path ? c.payload_path : GetProgramExecutableName();
 			if (delegate_to_native_helper(self, argc, argv) != 0) {
 				free(m.events);
 				return 1;
@@ -566,12 +575,12 @@ int main(int argc, char **argv)
 		}
 	}
 #endif
-	if (!have_repeat)
-		o.repeat = m.hdr.repeat; /* 0 = forever */
-	if (!have_speed)
-		o.speed_percent = m.hdr.speed_percent ? m.hdr.speed_percent : 100;
+	if (!c.have_repeat)
+		c.play.repeat = m.hdr.repeat; /* 0 = forever */
+	if (!c.have_speed)
+		c.play.speed_percent = m.hdr.speed_percent ? m.hdr.speed_percent : 100;
 
-	int rc = play(&m, pick_injector(dry_run), &o);
+	int rc = play(&m, pick_injector(c.dry_run), &c.play);
 	free(m.events);
 	return rc;
 }

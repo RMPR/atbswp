@@ -1,4 +1,4 @@
-/* Prints the SPA/PipeWire ABI facts crates/atbswp-core/src/record/pw.rs
+/* Prints the SPA/PipeWire ABI facts crates/atbswp-core/src/record/pw/abi.rs
  * hard-codes, so CI can diff them against the real headers. */
 #include <stdio.h>
 #include <stddef.h>

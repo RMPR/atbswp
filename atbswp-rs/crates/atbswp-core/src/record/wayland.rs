@@ -11,12 +11,76 @@ use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 
-/// Source of raw evdev events: in-process, a child running as root, or (for
-/// tests) a file/FIFO of raw event lines in the helper's format.
-enum Source {
-    Local,
-    Elevated(Child),
-    Reader(Box<dyn std::io::Read>),
+/// Merges the two Wayland sources on one CLOCK_MONOTONIC timeline: absolute
+/// cursor samples from the screen-cast stream and raw key/button/wheel
+/// events from evdev (in-process, a pkexec helper, or a test file).
+struct Merger {
+    b: Builder,
+    cursor: Option<CursorStream>,
+    pending: VecDeque<super::pw::Sample>,
+    last_t: u64,
+}
+
+impl Merger {
+    fn new(opts: &Options, cursor: Option<CursorStream>) -> Self {
+        Merger {
+            b: Builder::new(opts),
+            cursor,
+            pending: VecDeque::new(),
+            last_t: 0,
+        }
+    }
+
+    /// Emit cursor positions sampled up to time `t` as absolute moves.
+    fn drain_cursor(&mut self, t: u64) {
+        if let Some(cs) = &self.cursor {
+            self.pending.extend(cs.samples.try_iter());
+        }
+        while self.pending.front().is_some_and(|s| s.t_us <= t) {
+            let s = self.pending.pop_front().unwrap();
+            self.b.move_abs(s.t_us, s.x, s.y);
+        }
+    }
+
+    fn feed(&mut self, e: RawEvent) {
+        self.drain_cursor(e.t_us);
+        self.last_t = e.t_us;
+        // with a cursor stream, evdev's relative motion is redundant
+        evdev::apply(&mut self.b, &e, self.cursor.is_some());
+    }
+
+    /// Consume raw events in the helper's line format until `END`.
+    fn feed_lines(&mut self, r: impl std::io::Read) -> Result<(), String> {
+        for line in BufReader::new(r).lines() {
+            let line = line.map_err(|e| e.to_string())?;
+            if line == "END" {
+                break;
+            }
+            if let Some(e) = RawEvent::from_line(&line) {
+                self.feed(e);
+            }
+        }
+        Ok(())
+    }
+
+    fn finish(mut self, opts: &Options) -> Macro {
+        // Motion after the last key/button still matters (e.g. a final hover).
+        self.drain_cursor(self.last_t.max(super::monotonic_us()));
+        let mut header = Header::default();
+        if let Some(cs) = self.cursor.take() {
+            if let Some(err) = cs.error() {
+                eprintln!("atbswp: cursor stream reported: {err}");
+            }
+            if let Some((w, h)) = cs.size() {
+                (header.screen_w, header.screen_h) = (w, h);
+            }
+            cs.stop();
+        }
+        if let Some((w, h)) = opts.screen {
+            (header.screen_w, header.screen_h) = (w, h);
+        }
+        self.b.finish(header)
+    }
 }
 
 fn cli_binary() -> std::path::PathBuf {
@@ -32,6 +96,8 @@ fn cli_binary() -> std::path::PathBuf {
     std::path::PathBuf::from("atbswp")
 }
 
+/// Re-run the CLI recorder as root through pkexec; it streams raw events
+/// back on stdout (see [`stream_raw_to_stdout`]).
 fn spawn_elevated(opts: &Options) -> Result<Child, String> {
     let mut cmd = Command::new("pkexec");
     cmd.arg(cli_binary())
@@ -49,38 +115,13 @@ fn spawn_elevated(opts: &Options) -> Result<Child, String> {
         .map_err(|e| format!("pkexec: {e} (is polkit installed?)"))
 }
 
-/// Merges cursor samples (absolute) into the builder up to time `t`.
-fn drain_cursor(
-    b: &mut Builder,
-    pending: &mut VecDeque<super::pw::Sample>,
-    stream: Option<&CursorStream>,
-    t: u64,
-) {
-    if let Some(cs) = stream {
-        for s in cs.samples.try_iter() {
-            pending.push_back(s);
-        }
-    }
-    while let Some(s) = pending.front() {
-        if s.t_us > t {
-            break;
-        }
-        let s = pending.pop_front().unwrap();
-        b.move_abs(s.t_us, s.x, s.y);
-    }
-}
-
-pub fn record(opts: &Options) -> Result<Macro, String> {
-    // 1. Cursor stream via the ScreenCast portal (absolute positions).
-    let cursor = match portal::open_screencast().and_then(|sc| {
-        eprintln!(
-            "atbswp: screen-cast stream {} ({}x{})",
-            sc.node_id,
-            sc.stream.size.map_or(0, |s| s.0),
-            sc.stream.size.map_or(0, |s| s.1)
-        );
+fn start_cursor_stream() -> Option<CursorStream> {
+    let result = portal::open_screencast().and_then(|sc| {
+        let (w, h) = sc.stream.size.unwrap_or((0, 0));
+        eprintln!("atbswp: screen-cast stream {} ({w}x{h})", sc.node_id);
         CursorStream::start(sc.fd, sc.node_id)
-    }) {
+    });
+    match result {
         Ok(cs) => Some(cs),
         Err(e) => {
             eprintln!(
@@ -88,111 +129,50 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
             );
             None
         }
-    };
+    }
+}
 
-    // 2. Raw events: locally if we can read /dev/input, else via pkexec.
-    let source = match opts.raw_from.as_deref() {
-        Some(path) => Source::Reader(Box::new(
-            std::fs::File::open(path).map_err(|e| format!("{path}: {e}"))?,
-        )),
-        None => match evdev::open_probe() {
-            Ok(()) => Source::Local,
-            Err(evdev::Error::Permission) if opts.allow_elevate => {
-                Source::Elevated(spawn_elevated(opts)?)
-            }
-            Err(evdev::Error::Permission) => return Err(evdev::PERMISSION_HINT.into()),
-            Err(evdev::Error::Other(e)) => return Err(e),
-        },
-    };
+fn evdev_error(e: evdev::Error) -> String {
+    match e {
+        evdev::Error::Permission => evdev::PERMISSION_HINT.to_string(),
+        evdev::Error::Other(m) => m,
+    }
+}
+
+pub fn record(opts: &Options) -> Result<Macro, String> {
+    let mut merger = Merger::new(opts, start_cursor_stream());
     let stop_name = opts
         .stop_key
         .and_then(atbswp_macro::keys::key_name)
         .unwrap_or("Ctrl-C");
     eprintln!("atbswp: recording; press {stop_name} to stop");
 
-    let mut b = Builder::new(opts);
-    let mut pending = VecDeque::new();
-    let have_cursor = cursor.is_some();
-    let mut last_t = 0;
-    let feed = |b: &mut Builder, pending: &mut VecDeque<_>, e: RawEvent| {
-        drain_cursor(b, pending, cursor.as_ref(), e.t_us);
-        evdev::apply(b, &e, have_cursor);
-    };
-
-    match source {
-        Source::Reader(r) => {
-            for line in BufReader::new(r).lines() {
-                let line = line.map_err(|e| e.to_string())?;
-                if line == "END" {
-                    break;
-                }
-                if let Some(e) = RawEvent::from_line(&line) {
-                    last_t = e.t_us;
-                    feed(&mut b, &mut pending, e);
-                }
-            }
-        }
-        Source::Local => {
-            evdev::run(opts, |e| {
-                last_t = e.t_us;
-                feed(&mut b, &mut pending, e);
-            })
-            .map_err(|e| match e {
-                evdev::Error::Permission => evdev::PERMISSION_HINT.to_string(),
-                evdev::Error::Other(m) => m,
-            })?;
-        }
-        Source::Elevated(mut child) => {
-            let out = child
-                .stdout
-                .take()
-                .ok_or("no pipe from the elevated recorder")?;
-            for line in BufReader::new(out).lines() {
-                let line = line.map_err(|e| e.to_string())?;
-                if line == "END" {
-                    break;
-                }
-                if let Some(e) = RawEvent::from_line(&line) {
-                    last_t = e.t_us;
-                    feed(&mut b, &mut pending, e);
+    if let Some(path) = opts.raw_from.as_deref() {
+        // test hook: raw events from a file/FIFO in the helper's format
+        let f = std::fs::File::open(path).map_err(|e| format!("{path}: {e}"))?;
+        merger.feed_lines(f)?;
+    } else {
+        match evdev::open_probe() {
+            Ok(()) => evdev::run(opts, |e| merger.feed(e)).map_err(evdev_error)?,
+            Err(evdev::Error::Permission) if opts.allow_elevate => {
+                let mut child = spawn_elevated(opts)?;
+                let out = child
+                    .stdout
+                    .take()
+                    .ok_or("no pipe from the elevated recorder")?;
+                merger.feed_lines(out)?;
+                match child.wait().map_err(|e| e.to_string())?.code() {
+                    Some(0) => {}
+                    Some(126) | Some(127) => {
+                        return Err("authorisation was cancelled or refused".into());
+                    }
+                    other => return Err(format!("elevated recorder failed ({other:?})")),
                 }
             }
-            let status = child.wait().map_err(|e| e.to_string())?;
-            match status.code() {
-                Some(0) => {}
-                Some(126) | Some(127) => {
-                    return Err("authorisation was cancelled or refused".into());
-                }
-                other => return Err(format!("elevated recorder failed ({other:?})")),
-            }
+            Err(e) => return Err(evdev_error(e)),
         }
     }
-    // Motion after the last key/button still matters (e.g. a final hover).
-    drain_cursor(
-        &mut b,
-        &mut pending,
-        cursor.as_ref(),
-        last_t.max(evdev::monotonic_us()),
-    );
-
-    let mut header = Header {
-        ..Default::default()
-    };
-    if let Some(cs) = cursor {
-        if let Some(err) = cs.error() {
-            eprintln!("atbswp: cursor stream reported: {err}");
-        }
-        if let Some((w, h)) = cs.size() {
-            header.screen_w = w;
-            header.screen_h = h;
-        }
-        cs.stop();
-    }
-    if let Some((w, h)) = opts.screen {
-        header.screen_w = w;
-        header.screen_h = h;
-    }
-    Ok(b.finish(header))
+    Ok(merger.finish(opts))
 }
 
 /// The elevated helper's job: raw events as lines on stdout.
@@ -206,8 +186,5 @@ pub fn stream_raw_to_stdout(opts: &Options) -> Result<(), String> {
     });
     let _ = writeln!(out, "END");
     let _ = out.flush();
-    r.map_err(|e| match e {
-        evdev::Error::Permission => evdev::PERMISSION_HINT.to_string(),
-        evdev::Error::Other(m) => m,
-    })
+    r.map_err(evdev_error)
 }

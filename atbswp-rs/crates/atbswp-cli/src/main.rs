@@ -4,7 +4,6 @@
 
 use atbswp_core::record;
 use atbswp_macro::{Macro, text};
-use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -74,6 +73,12 @@ impl Args {
             .find(|(n, _)| n == name)
             .and_then(|(_, v)| v.as_deref())
     }
+    /// `-o FILE` / `--output FILE`, or an error naming the command.
+    fn output(&self, cmd: &str) -> Result<&str, String> {
+        self.value("o")
+            .or(self.value("output"))
+            .ok_or_else(|| format!("{cmd}: missing -o OUTPUT"))
+    }
     fn u32(&self, name: &str) -> Result<Option<u32>, String> {
         match self.value(name) {
             None => Ok(None),
@@ -105,10 +110,7 @@ fn apply_overrides(m: &mut Macro, args: &Args) -> Result<(), String> {
 
 fn cmd_export(args: &Args) -> Result<(), String> {
     let input = args.positional.first().ok_or("export: missing INPUT")?;
-    let output = args
-        .value("o")
-        .or(args.value("output"))
-        .ok_or("export: missing -o OUTPUT")?;
+    let output = args.output("export")?;
     let mut m = load_macro(input)?;
     apply_overrides(&mut m, args)?;
     let player = player_bytes(args)?;
@@ -137,10 +139,7 @@ fn cmd_dump(args: &Args) -> Result<(), String> {
 }
 
 fn cmd_player(args: &Args) -> Result<(), String> {
-    let output = args
-        .value("o")
-        .or(args.value("output"))
-        .ok_or("player: missing -o OUTPUT")?;
+    let output = args.output("player")?;
     let player = player_bytes(args)?;
     atbswp_core::write_player(Path::new(output), &player)?;
     eprintln!("wrote {output} ({} KiB)", player.len() / 1024);
@@ -227,22 +226,9 @@ fn cmd_record(args: &Args) -> Result<(), String> {
     if Path::new(&path).extension().is_none() {
         path.push_str(".com");
     }
-    let p = Path::new(&path);
-    let ext = p
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    match ext.as_str() {
-        "atbswp" => fs::write(p, m.encode()).map_err(|e| format!("{path}: {e}"))?,
-        "com" | "exe" => {
-            let player = player_bytes(args)?;
-            atbswp_core::write_exe(p, &player, &m)?;
-        }
-        _ => fs::write(p, text::render(&m)).map_err(|e| format!("{path}: {e}"))?,
-    }
+    atbswp_core::save_as(Path::new(&path), &m, args.value("player").map(Path::new))?;
     eprintln!("wrote {path} ({summary})");
-    if matches!(ext.as_str(), "com" | "exe") {
+    if path.ends_with(".com") || path.ends_with(".exe") {
         eprintln!(
             "run it directly on Linux, Windows or macOS; `atbswp dump {path}` shows the script"
         );

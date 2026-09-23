@@ -747,22 +747,16 @@ static int xtest_connect(uint32_t *w, uint32_t *h)
 		LOGV("X11/XTest libraries not available\n");
 		return -1;
 	}
-#define LOAD(ret, name, args) \
-	p_##name = (ret (*) args)DLSYM(name##_handle, #name); \
+#define LOAD_X(ret, name, args) \
+	p_##name = (ret (*) args)DLSYM(hx, #name); \
 	if (!p_##name) { LOGE("x11: missing symbol %s\n", #name); return -1; }
-#define XOpenDisplay_handle hx
-#define XCloseDisplay_handle hx
-#define XDefaultScreen_handle hx
-#define XDisplayWidth_handle hx
-#define XDisplayHeight_handle hx
-#define XFlush_handle hx
-#define XTestFakeMotionEvent_handle ht
-#define XTestFakeRelativeMotionEvent_handle ht
-#define XTestFakeButtonEvent_handle ht
-#define XTestFakeKeyEvent_handle ht
-	X_FUNCS(LOAD)
-	XT_FUNCS(LOAD)
-#undef LOAD
+#define LOAD_XT(ret, name, args) \
+	p_##name = (ret (*) args)DLSYM(ht, #name); \
+	if (!p_##name) { LOGE("x11: missing symbol %s\n", #name); return -1; }
+	X_FUNCS(LOAD_X)
+	XT_FUNCS(LOAD_XT)
+#undef LOAD_X
+#undef LOAD_XT
 	xdpy = p_XOpenDisplay(0);
 	if (!xdpy) {
 		LOGE("x11: cannot open display\n");

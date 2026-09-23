@@ -71,15 +71,6 @@ impl RawEvent {
     }
 }
 
-pub fn monotonic_us() -> u64 {
-    let mut ts = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) };
-    ts.tv_sec as u64 * 1_000_000 + ts.tv_nsec as u64 / 1000
-}
-
 // EVIOCSCLOCKID = _IOW('E', 0xa0, int)
 const EVIOCSCLOCKID: libc::c_ulong = 0x4004_45a0;
 
@@ -223,6 +214,118 @@ fn open_devices() -> Result<Vec<Device>, Error> {
 /// Read raw events from all devices until the stop key is pressed or
 /// [`super::request_stop`] is called.  `sink` receives every event; the
 /// stop key itself is not delivered.
+/// What a device's event asked the loop to do.
+enum Flow {
+    Continue,
+    Stop,
+}
+
+impl Device {
+    /// Handle one 24-byte `input_event`, emitting raw events to `sink`.
+    fn handle(&mut self, opts: &Options, e: &[u8], sink: &mut impl FnMut(RawEvent)) -> Flow {
+        let sec = i64::from_le_bytes(e[0..8].try_into().unwrap());
+        let usec = i64::from_le_bytes(e[8..16].try_into().unwrap());
+        let t_us = if sec > 0 {
+            (sec as u64) * 1_000_000 + usec as u64
+        } else {
+            super::monotonic_us()
+        };
+        let typ = u16::from_le_bytes([e[16], e[17]]);
+        let code = u16::from_le_bytes([e[18], e[19]]);
+        let value = i32::from_le_bytes(e[20..24].try_into().unwrap());
+        match typ {
+            EV_KEY => {
+                if value == 2 {
+                    return Flow::Continue; // autorepeat
+                }
+                let pressed = value != 0;
+                if let Some(tp) = self.touchpad.as_mut()
+                    && (code == BTN_MOUSE_FIRST || super::touchpad::Touchpad::is_tool_key(code))
+                {
+                    tp.key(code, pressed); // decided at the end of the frame
+                } else if (BTN_MOUSE_FIRST..=BTN_MOUSE_LAST).contains(&code) {
+                    sink(RawEvent {
+                        t_us,
+                        ev: Raw::Button { code, pressed },
+                    });
+                } else if code < KEY_MAX {
+                    if Some(code) == opts.stop_key {
+                        return if pressed { Flow::Stop } else { Flow::Continue };
+                    }
+                    sink(RawEvent {
+                        t_us,
+                        ev: Raw::Key { code, pressed },
+                    });
+                }
+            }
+            EV_REL => match code {
+                REL_X => sink(RawEvent {
+                    t_us,
+                    ev: Raw::Rel { dx: value, dy: 0 },
+                }),
+                REL_Y => sink(RawEvent {
+                    t_us,
+                    ev: Raw::Rel { dx: 0, dy: value },
+                }),
+                REL_WHEEL => self.wheel += value,
+                REL_HWHEEL => self.hwheel += value,
+                REL_WHEEL_HI_RES => {
+                    self.wheel_hi += value;
+                    self.has_hi_res = true;
+                }
+                REL_HWHEEL_HI_RES => {
+                    self.hwheel_hi += value;
+                    self.has_hi_res = true;
+                }
+                _ => {}
+            },
+            EV_ABS => {
+                if let Some(tp) = self.touchpad.as_mut() {
+                    tp.abs(code, value);
+                }
+            }
+            EV_SYN => self.end_of_frame(t_us, sink),
+            _ => {}
+        }
+        Flow::Continue
+    }
+
+    /// Frame boundary: touchpad clicks and the accumulated wheel movement.
+    fn end_of_frame(&mut self, t_us: u64, sink: &mut impl FnMut(RawEvent)) {
+        if let Some(tp) = self.touchpad.as_mut() {
+            for out in tp.frame(t_us) {
+                let (code, pressed) = match out {
+                    super::touchpad::Out::Press(c) => (c, true),
+                    super::touchpad::Out::Release(c) => (c, false),
+                };
+                sink(RawEvent {
+                    t_us,
+                    ev: Raw::Button { code, pressed },
+                });
+            }
+        }
+        // Kernel sign: +wheel = up; ours: +y = down. Hi-res wins when present.
+        let (sx, sy) = if self.has_hi_res {
+            (self.hwheel_hi, -self.wheel_hi)
+        } else {
+            (self.hwheel * 120, -self.wheel * 120)
+        };
+        if sx != 0 || sy != 0 {
+            sink(RawEvent {
+                t_us,
+                ev: Raw::Scroll { x: sx, y: sy },
+            });
+        }
+        self.wheel = 0;
+        self.hwheel = 0;
+        self.wheel_hi = 0;
+        self.hwheel_hi = 0;
+    }
+}
+
+/// Read raw events from all devices until the stop key is pressed or
+/// [`super::request_stop`] is called.  `sink` receives every event; the
+/// stop key itself is not delivered.
 pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> {
     let mut devs = open_devices()?;
     if opts.handle_signals {
@@ -240,7 +343,7 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
         })
         .collect();
 
-    'outer: while !super::stop_requested() {
+    while !super::stop_requested() {
         let n = unsafe { libc::poll(pollfds.as_mut_ptr(), pollfds.len() as libc::nfds_t, 100) };
         if n < 0 {
             let err = io::Error::last_os_error();
@@ -249,125 +352,24 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
             }
             return Err(Error::Other(format!("poll: {err}")));
         }
-        if n == 0 {
-            continue;
-        }
-        for (i, pfd) in pollfds.iter_mut().enumerate() {
+        for (dev, pfd) in devs.iter_mut().zip(pollfds.iter()) {
             if pfd.revents & libc::POLLIN == 0 {
                 continue;
             }
-            let dev = &mut devs[i];
             let mut chunk = [0u8; INPUT_EVENT_LEN * 64];
             let got = match dev.file.read(&mut chunk) {
-                Ok(0) => continue,
-                Ok(n) => n,
-                Err(_) => continue, // would block, or device went away
+                Ok(n) if n > 0 => n,
+                _ => continue, // nothing, would block, or the device went away
             };
             dev.buf.extend_from_slice(&chunk[..got]);
-            let mut consumed = 0;
-            while dev.buf.len() - consumed >= INPUT_EVENT_LEN {
-                let e = &dev.buf[consumed..consumed + INPUT_EVENT_LEN];
-                consumed += INPUT_EVENT_LEN;
-                let sec = i64::from_le_bytes(e[0..8].try_into().unwrap());
-                let usec = i64::from_le_bytes(e[8..16].try_into().unwrap());
-                let t_us = if sec > 0 {
-                    (sec as u64) * 1_000_000 + usec as u64
-                } else {
-                    monotonic_us()
-                };
-                let typ = u16::from_le_bytes([e[16], e[17]]);
-                let code = u16::from_le_bytes([e[18], e[19]]);
-                let value = i32::from_le_bytes(e[20..24].try_into().unwrap());
-                match typ {
-                    EV_KEY => {
-                        if value == 2 {
-                            continue; // autorepeat
-                        }
-                        let pressed = value != 0;
-                        if let Some(tp) = dev.touchpad.as_mut()
-                            && (code == BTN_MOUSE_FIRST
-                                || super::touchpad::Touchpad::is_tool_key(code))
-                        {
-                            // decided at the end of the frame, see EV_SYN
-                            tp.key(code, pressed);
-                        } else if (BTN_MOUSE_FIRST..=BTN_MOUSE_LAST).contains(&code) {
-                            sink(RawEvent {
-                                t_us,
-                                ev: Raw::Button { code, pressed },
-                            });
-                        } else if code < KEY_MAX {
-                            if Some(code) == opts.stop_key {
-                                if pressed {
-                                    break 'outer;
-                                }
-                                continue;
-                            }
-                            sink(RawEvent {
-                                t_us,
-                                ev: Raw::Key { code, pressed },
-                            });
-                        }
-                    }
-                    EV_REL => match code {
-                        REL_X => sink(RawEvent {
-                            t_us,
-                            ev: Raw::Rel { dx: value, dy: 0 },
-                        }),
-                        REL_Y => sink(RawEvent {
-                            t_us,
-                            ev: Raw::Rel { dx: 0, dy: value },
-                        }),
-                        REL_WHEEL => dev.wheel += value,
-                        REL_HWHEEL => dev.hwheel += value,
-                        REL_WHEEL_HI_RES => {
-                            dev.wheel_hi += value;
-                            dev.has_hi_res = true;
-                        }
-                        REL_HWHEEL_HI_RES => {
-                            dev.hwheel_hi += value;
-                            dev.has_hi_res = true;
-                        }
-                        _ => {}
-                    },
-                    EV_ABS => {
-                        if let Some(tp) = dev.touchpad.as_mut() {
-                            tp.abs(code, value);
-                        }
-                    }
-                    EV_SYN => {
-                        if let Some(tp) = dev.touchpad.as_mut() {
-                            for out in tp.frame(t_us) {
-                                let (code, pressed) = match out {
-                                    super::touchpad::Out::Press(c) => (c, true),
-                                    super::touchpad::Out::Release(c) => (c, false),
-                                };
-                                sink(RawEvent {
-                                    t_us,
-                                    ev: Raw::Button { code, pressed },
-                                });
-                            }
-                        }
-                        // Frame boundary: emit scroll. Kernel sign: +wheel = up.
-                        let (sx, sy) = if dev.has_hi_res {
-                            (dev.hwheel_hi, -dev.wheel_hi)
-                        } else {
-                            (dev.hwheel * 120, -dev.wheel * 120)
-                        };
-                        if sx != 0 || sy != 0 {
-                            sink(RawEvent {
-                                t_us,
-                                ev: Raw::Scroll { x: sx, y: sy },
-                            });
-                        }
-                        dev.wheel = 0;
-                        dev.hwheel = 0;
-                        dev.wheel_hi = 0;
-                        dev.hwheel_hi = 0;
-                    }
-                    _ => {}
+            // take whole events out of the buffer, keep any partial tail
+            let whole = dev.buf.len() / INPUT_EVENT_LEN * INPUT_EVENT_LEN;
+            let events: Vec<u8> = dev.buf.drain(..whole).collect();
+            for e in events.chunks_exact(INPUT_EVENT_LEN) {
+                if let Flow::Stop = dev.handle(opts, e, &mut sink) {
+                    return Ok(());
                 }
             }
-            dev.buf.drain(..consumed);
         }
     }
     Ok(())

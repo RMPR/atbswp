@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Compare `pw_abi_check` output with the constants in record/pw.rs."""
+"""Compare `pw_abi_check` output with the constants in record/pw/abi.rs."""
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
-rust = (root / "crates/atbswp-core/src/record/pw.rs").read_text()
+rust = (root / "crates/atbswp-core/src/record/pw/abi.rs").read_text()
 consts = {m.group(1): int(m.group(2).replace("_", ""), 0)
           for m in re.finditer(r"pub const (\w+): (?:u32|usize) = (0x[0-9A-Fa-f_]+|[0-9_]+);", rust)}
 expected_layout = {
@@ -24,7 +24,7 @@ for line in out.splitlines():
     val = int(val)
     want = consts.get(name, expected_layout.get(name))
     if want is None:
-        print(f"?? {name} not in pw.rs")
+        print(f"?? {name} not in pw/abi.rs")
         bad += 1
     elif want != val:
         print(f"MISMATCH {name}: rust {want}, headers {val}")
