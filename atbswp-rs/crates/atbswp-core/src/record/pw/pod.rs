@@ -172,7 +172,6 @@ impl Pod {
 
 #[cfg(test)]
 mod tests {
-    use super::super::abi::*;
     use super::*;
 
     #[test]
