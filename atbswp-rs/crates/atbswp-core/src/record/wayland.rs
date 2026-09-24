@@ -10,6 +10,7 @@ use atbswp_macro::{Header, Macro};
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
+use std::sync::Mutex;
 
 /// Merges the two Wayland sources on one CLOCK_MONOTONIC timeline: absolute
 /// cursor samples from the screen-cast stream and raw key/button/wheel
@@ -96,6 +97,16 @@ fn cli_binary() -> std::path::PathBuf {
     std::path::PathBuf::from("atbswp")
 }
 
+/// The elevated helper's stdin.  An unprivileged parent cannot signal a
+/// root process, so [`super::request_stop`] stops the helper by closing
+/// this pipe, which the helper polls (see [`stream_raw_to_stdout`]).
+static HELPER_STDIN: Mutex<Option<std::process::ChildStdin>> = Mutex::new(None);
+
+/// Called from [`super::request_stop`].
+pub(crate) fn stop_helper() {
+    HELPER_STDIN.lock().unwrap().take();
+}
+
 /// Re-run the CLI recorder as root through pkexec; it streams raw events
 /// back on stdout (see [`stream_raw_to_stdout`]).
 fn spawn_elevated(opts: &Options) -> Result<Child, String> {
@@ -108,11 +119,17 @@ fn spawn_elevated(opts: &Options) -> Result<Child, String> {
         cmd.arg("--stop-key").arg(k.to_string());
     }
     eprintln!("atbswp: /dev/input is not readable; asking for authorisation via pkexec");
-    cmd.stdin(Stdio::null())
+    let mut child = cmd
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
-        .map_err(|e| format!("pkexec: {e} (is polkit installed?)"))
+        .map_err(|e| format!("pkexec: {e} (is polkit installed?)"))?;
+    *HELPER_STDIN.lock().unwrap() = child.stdin.take();
+    if super::stop_requested() {
+        stop_helper(); // Stop was clicked while pkexec was prompting
+    }
+    Ok(child)
 }
 
 fn start_cursor_stream() -> Option<CursorStream> {
@@ -153,7 +170,7 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
         merger.feed_lines(f)?;
     } else {
         match evdev::open_probe() {
-            Ok(()) => evdev::run(opts, |e| merger.feed(e)).map_err(evdev_error)?,
+            Ok(()) => evdev::run(opts, None, |e| merger.feed(e)).map_err(evdev_error)?,
             Err(evdev::Error::Permission) if opts.allow_elevate => {
                 let mut child = spawn_elevated(opts)?;
                 let out = child
@@ -161,6 +178,7 @@ pub fn record(opts: &Options) -> Result<Macro, String> {
                     .take()
                     .ok_or("no pipe from the elevated recorder")?;
                 merger.feed_lines(out)?;
+                stop_helper();
                 match child.wait().map_err(|e| e.to_string())?.code() {
                     Some(0) => {}
                     Some(126) | Some(127) => {
@@ -180,7 +198,8 @@ pub fn stream_raw_to_stdout(opts: &Options) -> Result<(), String> {
     use std::io::Write;
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
-    let r = evdev::run(opts, |e| {
+    // stdin is the stop pipe: the parent closes it to end the recording
+    let r = evdev::run(opts, Some(0), |e| {
         let _ = writeln!(out, "{}", e.to_line());
         let _ = out.flush();
     });

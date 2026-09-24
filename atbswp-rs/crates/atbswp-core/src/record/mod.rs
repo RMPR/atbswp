@@ -77,6 +77,8 @@ static STOP: AtomicBool = AtomicBool::new(false);
 /// Ask a running [`record`] call (on another thread) to finish.
 pub fn request_stop() {
     STOP.store(true, Ordering::SeqCst);
+    #[cfg(target_os = "linux")]
+    wayland::stop_helper();
 }
 
 pub(crate) fn stop_requested() -> bool {

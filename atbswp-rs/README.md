@@ -142,7 +142,8 @@ legitimate sources on one `CLOCK_MONOTONIC` timeline:
   about 2 mm is a tap-to-click, and a physical clickpad press with two or
   three fingers resting on the pad is a right or middle click (the
   clickfinger method, the default on Apple touchpads). Tap-and-drag is not
-  reproduced.
+  reproduced. `ATBSWP_VERBOSE=1 atbswp record …` names the detected
+  touchpads and explains every touch it did not turn into a click.
 * **Keys, buttons, wheel:** evdev. When `/dev/input` is not readable the
   recorder re-runs itself through `pkexec`; only that small helper runs as
   root, streaming raw events back over a pipe, and the unprivileged parent

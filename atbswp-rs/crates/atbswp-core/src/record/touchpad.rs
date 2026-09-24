@@ -47,6 +47,7 @@ pub struct Touchpad {
     physical: Option<u16>,
     /// per-frame buffer: (code, pressed) of button-ish keys
     frame_keys: Vec<(u16, bool)>,
+    verbose: bool,
 }
 
 fn button_for(fingers: u32) -> u16 {
@@ -77,7 +78,16 @@ impl Touchpad {
             clicked_during_touch: false,
             physical: None,
             frame_keys: vec![],
+            verbose: std::env::var_os("ATBSWP_VERBOSE").is_some(),
         }
+    }
+
+    /// One line for `ATBSWP_VERBOSE` diagnostics.
+    pub fn describe(&self) -> String {
+        format!(
+            "tap-to-click and clickfinger synthesis on, motion threshold {} units",
+            self.move_threshold
+        )
     }
 
     pub fn is_tool_key(code: u16) -> bool {
@@ -144,11 +154,20 @@ impl Touchpad {
                 }
                 BTN_TOUCH if !pressed && self.touching => {
                     self.touching = false;
-                    let quick = t_us.saturating_sub(self.touch_start_us) <= TAP_TIMEOUT_US;
+                    let held_us = t_us.saturating_sub(self.touch_start_us);
+                    let quick = held_us <= TAP_TIMEOUT_US;
                     if quick && !self.moved && !self.clicked_during_touch {
                         let b = button_for(self.peak_fingers.max(1));
                         out.push(Out::Press(b));
                         out.push(Out::Release(b));
+                    } else if self.verbose {
+                        eprintln!(
+                            "atbswp: touch ignored (not a tap): {}ms, moved={}, physical click={}, fingers={}",
+                            held_us / 1000,
+                            self.moved,
+                            self.clicked_during_touch,
+                            self.peak_fingers
+                        );
                     }
                     self.start = None;
                 }

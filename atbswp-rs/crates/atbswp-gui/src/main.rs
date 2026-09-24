@@ -393,8 +393,12 @@ fn main() {
     });
     let a = app.clone();
     ui.on_settings_clicked(move || {
-        if let Some(w) = a.settings_win.upgrade() {
-            let _ = w.show();
+        let (Some(w), Some(ui)) = (a.settings_win.upgrade(), a.ui.upgrade()) else {
+            return;
+        };
+        if let Err(e) = w.show() {
+            eprintln!("atbswp: cannot show the settings window: {e}");
+            ui.set_status(format!("Settings window: {e}").into());
         }
     });
     let a = app.clone();

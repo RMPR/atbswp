@@ -96,6 +96,7 @@ extern "C" fn on_sigint(_: libc::c_int) {
 }
 
 struct Device {
+    name: String,
     file: File,
     buf: Vec<u8>,
     wheel: i32,
@@ -187,6 +188,7 @@ fn open_devices() -> Result<Vec<Device>, Error> {
                 unsafe { libc::ioctl(file.as_raw_fd(), EVIOCSCLOCKID as _, &clock) };
                 let touchpad = probe_touchpad(&file);
                 devs.push(Device {
+                    name: entry.file_name().to_string_lossy().into_owned(),
                     file,
                     buf: vec![],
                     wheel: 0,
@@ -323,11 +325,23 @@ impl Device {
     }
 }
 
-/// Read raw events from all devices until the stop key is pressed or
-/// [`super::request_stop`] is called.  `sink` receives every event; the
-/// stop key itself is not delivered.
-pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> {
+/// Read raw events from all devices until the stop key is pressed,
+/// [`super::request_stop`] is called, or `stop_fd` (if any) becomes readable
+/// or hangs up.  `sink` receives every event; the stop key itself is not
+/// delivered.
+pub fn run(
+    opts: &Options,
+    stop_fd: Option<i32>,
+    mut sink: impl FnMut(RawEvent),
+) -> Result<(), Error> {
     let mut devs = open_devices()?;
+    if std::env::var_os("ATBSWP_VERBOSE").is_some() {
+        for d in &devs {
+            if let Some(tp) = &d.touchpad {
+                eprintln!("atbswp: touchpad {}: {}", d.name, tp.describe());
+            }
+        }
+    }
     if opts.handle_signals {
         unsafe {
             libc::signal(libc::SIGINT, on_sigint as *const () as usize);
@@ -351,6 +365,9 @@ pub fn run(opts: &Options, mut sink: impl FnMut(RawEvent)) -> Result<(), Error> 
                 continue;
             }
             return Err(Error::Other(format!("poll: {err}")));
+        }
+        if stop_fd.is_some() && pollfds[devs.len()].revents != 0 {
+            return Ok(()); // the parent closed our stop pipe
         }
         for (dev, pfd) in devs.iter_mut().zip(pollfds.iter()) {
             if pfd.revents & libc::POLLIN == 0 {
@@ -401,7 +418,7 @@ pub fn record(opts: &Options) -> Result<Macro, Error> {
     let stop_name = opts.stop_key.and_then(keys::key_name).unwrap_or("Ctrl-C");
     eprintln!("atbswp: recording from evdev; press {stop_name} to stop");
     let mut b = Builder::new(opts);
-    run(opts, |e| apply(&mut b, &e, false))?;
+    run(opts, None, |e| apply(&mut b, &e, false))?;
     let (screen_w, screen_h) = opts.screen.unwrap_or((0, 0));
     Ok(b.finish(Header {
         screen_w,
