@@ -326,17 +326,47 @@ struct play_opts {
 	uint32_t start_delay_ms;
 };
 
-static void track_held(uint16_t *held, int *n, int cap, uint16_t code, bool press)
+/* Keys and buttons the macro currently holds, with the time they went down. */
+static void track_held2(uint16_t *held, uint64_t *when, int *n, int cap, uint16_t code, bool press)
 {
 	for (int i = 0; i < *n; i++) {
 		if (held[i] == code) {
-			if (!press)
-				held[i] = held[--*n];
+			if (!press) {
+				--*n;
+				held[i] = held[*n];
+				when[i] = when[*n];
+			}
 			return;
 		}
 	}
-	if (press && *n < cap)
-		held[(*n)++] = code;
+	if (press && *n < cap) {
+		held[*n] = code;
+		when[*n] = now_us();
+		(*n)++;
+	}
+}
+
+/* A recorded tap can carry a zero-length press.  Real hardware never
+ * releases within a few milliseconds, and some compositors and toolkits
+ * (GNOME via libei among them) ignore a button or key that was never
+ * measurably down, so hold every press for at least this long. */
+#define MIN_HOLD_US 25000
+
+static void ensure_min_hold(const struct injector *inj, const uint16_t *held, const uint64_t *when, int n, uint16_t code)
+{
+	for (int i = 0; i < n; i++) {
+		if (held[i] != code)
+			continue;
+		uint64_t elapsed = now_us() - when[i];
+		if (elapsed < MIN_HOLD_US) {
+			uint32_t left = (uint32_t)(MIN_HOLD_US - elapsed);
+			if (inj->idle)
+				inj->idle(left);
+			else
+				sleep_us(left);
+		}
+		return;
+	}
 }
 
 static const struct injector *pick_injector(bool dry_run)
@@ -369,6 +399,7 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 	/* what the macro currently holds down, released on stop or at the end */
 	enum { MAX_HELD = 64 };
 	uint16_t held_keys[MAX_HELD], held_btns[MAX_HELD];
+	uint64_t held_key_t[MAX_HELD], held_btn_t[MAX_HELD];
 	int nkeys = 0, nbtns = 0;
 	signal(SIGINT, on_signal);
 	signal(SIGTERM, on_signal);
@@ -416,15 +447,19 @@ static int play(const struct macro *m, const struct injector *inj, const struct 
 			case ATBSWP_EV_BUTTON_PRESS:
 			case ATBSWP_EV_BUTTON_RELEASE: {
 				bool press = e->type == ATBSWP_EV_BUTTON_PRESS;
+				if (!press)
+					ensure_min_hold(inj, held_btns, held_btn_t, nbtns, e->code);
 				inj->button(e->code, press);
-				track_held(held_btns, &nbtns, MAX_HELD, e->code, press);
+				track_held2(held_btns, held_btn_t, &nbtns, MAX_HELD, e->code, press);
 				break;
 			}
 			case ATBSWP_EV_KEY_PRESS:
 			case ATBSWP_EV_KEY_RELEASE: {
 				bool press = e->type == ATBSWP_EV_KEY_PRESS;
+				if (!press)
+					ensure_min_hold(inj, held_keys, held_key_t, nkeys, e->code);
 				inj->key(e->code, press);
-				track_held(held_keys, &nkeys, MAX_HELD, e->code, press);
+				track_held2(held_keys, held_key_t, &nkeys, MAX_HELD, e->code, press);
 				break;
 			}
 			case ATBSWP_EV_SCROLL:
