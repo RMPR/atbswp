@@ -1,0 +1,200 @@
+// atbswp main window: the classic one-row toolbar, plus a status line and
+// playback settings.  Icons come from the original project.
+import { Button, SpinBox, HorizontalBox, VerticalBox, CheckBox, ComboBox } from "std-widgets.slint";
+
+component ToolButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> tooltip;
+    in property <bool> active: false;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    width: 72px;
+    height: 72px;
+    border-width: focus.has-focus ? 2px : 1px;
+    border-color: focus.has-focus ? #2a6fdb : active ? #7ea7e7 : #d8d8d8;
+    background: !enabled ? #f0f0f0 : active ? #dbe9ff : touch.has-hover ? #f4f4f4 : #ffffff;
+
+    // Keyboard and assistive-technology access: a real button role and
+    // name, Tab focus, Enter/Space activation.
+    accessible-role: button;
+    accessible-label: root.tooltip;
+    accessible-enabled: root.enabled;
+    accessible-checkable: root.active;
+    accessible-checked: root.active;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+    forward-focus: focus;
+
+    Image {
+        source: root.icon;
+        width: 40px;
+        height: 40px;
+        opacity: root.enabled ? 1 : 0.35;
+    }
+    focus := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == Key.Return) {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { focus.focus(); root.clicked(); }
+    }
+    if touch.has-hover : Rectangle {
+        y: parent.height - 2px;
+        x: (parent.width - t.width - 8px) / 2;
+        width: t.width + 8px;
+        height: t.height + 4px;
+        background: #333333;
+        border-radius: 3px;
+        t := Text { text: root.tooltip; color: white; font-size: 11px; x: 4px; y: 2px; }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: "atbswp";
+    icon: @image-url("../../../../atbswp/img/icon.png");
+    default-font-size: 13px;
+    min-width: 6 * 72px;
+    always-on-top: root.stay-on-top;
+    background: #ffffff;
+
+    in property <bool> recording: false;
+    in property <bool> playing: false;
+    in property <bool> busy: recording || playing;
+    in property <string> status: @tr("Ready");
+    in property <int> event-count: 0;
+    in property <float> duration-s: 0;
+    in property <string> version: "";
+
+    in property <bool> stay-on-top: true;
+
+    callback load-clicked;
+    callback save-clicked;
+    callback record-toggled;
+    callback play-toggled;
+    callback help-clicked;
+    callback settings-clicked;
+
+    // Status-bar messages set from Rust, kept here so they are translatable.
+    public pure function msg-loaded(path: string) -> string { @tr("Loaded {}", path) }
+    public pure function msg-wrote(path: string) -> string { @tr("Wrote {}", path) }
+    public pure function msg-recording(hotkey: string) -> string { @tr("Recording… press {} or the record button to stop", hotkey) }
+    public pure function msg-recording-in(seconds: int, hotkey: string) -> string { @tr("Recording starts in {}s… press {} or the record button to stop", seconds, hotkey) }
+    public pure function msg-recorded(count: int) -> string { @tr("Recorded {} events", count) }
+    public pure function msg-stopping() -> string { @tr("Stopping…") }
+    public pure function msg-playing() -> string { @tr("Playing…") }
+    public pure function msg-stopped() -> string { @tr("Stopped") }
+    public pure function msg-done() -> string { @tr("Done") }
+    public pure function msg-player-exit(status: string) -> string { @tr("Player exited with {}", status) }
+    public pure function msg-opened(url: string) -> string { @tr("Opened {}", url) }
+    public pure function msg-settings-error(err: string) -> string { @tr("Cannot save settings: {}", err) }
+    public pure function msg-no-player() -> string { @tr("No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER") }
+
+    VerticalLayout {
+        spacing: 0px;
+        HorizontalLayout {
+            spacing: 0px;
+            ToolButton { icon: @image-url("../../../../atbswp/img/file-upload.png"); tooltip: @tr("Load macro"); enabled: !root.busy; clicked => { root.load-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/save.png"); tooltip: @tr("Save macro (standalone executable)"); enabled: !root.busy && root.event-count > 0; clicked => { root.save-clicked(); } }
+            ToolButton { icon: root.recording ? @image-url("../../../../atbswp/img/icon-recording.png") : @image-url("../../../../atbswp/img/video.png"); tooltip: root.recording ? @tr("Stop recording") : @tr("Record"); active: root.recording; enabled: !root.playing; clicked => { root.record-toggled(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/play-circle.png"); tooltip: root.playing ? @tr("Stop") : @tr("Play"); active: root.playing; enabled: !root.recording && (root.event-count > 0 || root.playing); clicked => { root.play-toggled(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/cog.png"); tooltip: @tr("Settings"); clicked => { root.settings-clicked(); } }
+            ToolButton { icon: @image-url("../../../../atbswp/img/question-circle.png"); tooltip: @tr("Help (video tutorial)"); clicked => { root.help-clicked(); } }
+        }
+        Rectangle {
+            height: 26px;
+            background: root.recording ? #ffe3e3 : root.playing ? #e3f0ff : #f4f4f4;
+            HorizontalLayout {
+                padding-left: 8px; padding-right: 8px;
+                Text { text: root.status; vertical-alignment: center; overflow: elide; }
+                Text {
+                    text: root.event-count == 0 ? "" : @tr("{} events · {}s", root.event-count, round(root.duration-s * 10) / 10);
+                    vertical-alignment: center; horizontal-alignment: right; color: #555555;
+                }
+            }
+        }
+    }
+}
+
+// The settings live in their own window (a popup would be clipped to the
+// 100 px tall toolbar).  Same entries as the Python version's menu.
+export component SettingsWindow inherits Window {
+    title: @tr("atbswp settings");
+    icon: @image-url("../../../../atbswp/img/icon.png");
+    default-font-size: 13px;
+    background: #ffffff;
+    // wide enough for the longest translated labels
+    width: 560px;
+    height: 440px;
+
+    in-out property <bool> fast-play: false;
+    in-out property <bool> infinite: false;
+    in-out property <int> repeat: 1;
+    in-out property <int> hotkey-index: 11;   // F1..F12
+    in-out property <bool> stay-on-top: true;
+    in-out property <int> recording-timer: 0;
+    in-out property <int> mouse-speed: 21;
+    in property <string> version: "";
+    // index into LANGUAGES in settings.rs (0 = follow the system locale)
+    in-out property <int> language-index: 0;
+
+    callback changed;
+    callback language-changed;
+    callback about-clicked;
+    callback exit-clicked;
+
+    VerticalBox {
+        spacing: 8px;
+        alignment: start;
+        CheckBox { text: @tr("Play speed: fast (2×)"); checked <=> root.fast-play; toggled => { root.changed(); } }
+        CheckBox { text: @tr("Infinite playback"); checked <=> root.infinite; toggled => { root.changed(); } }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Repeat count"); vertical-alignment: center; horizontal-stretch: 1; }
+            SpinBox { minimum: 1; maximum: 999; value <=> root.repeat; enabled: !root.infinite; edited => { root.changed(); } }
+        }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Recording hotkey (stops recording)"); vertical-alignment: center; horizontal-stretch: 1; }
+            ComboBox {
+                model: ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
+                current-index <=> root.hotkey-index;
+                selected => { root.changed(); }
+            }
+        }
+        CheckBox { text: @tr("Always on top"); checked <=> root.stay-on-top; toggled => { root.changed(); } }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Recording timer (seconds before start)"); vertical-alignment: center; horizontal-stretch: 1; }
+            SpinBox { minimum: 0; maximum: 999; value <=> root.recording-timer; edited => { root.changed(); } }
+        }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Mouse speed (ms between recorded moves)"); vertical-alignment: center; horizontal-stretch: 1; }
+            SpinBox { minimum: 1; maximum: 9999; value <=> root.mouse-speed; edited => { root.changed(); } }
+        }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: @tr("Language"); vertical-alignment: center; horizontal-stretch: 1; }
+            ComboBox {
+                // native names on purpose: readable whatever the current language
+                model: [@tr("System default"), "Deutsch", "English", "Español", "Français", "Italiano", "日本語", "Polski", "Türkçe"];
+                current-index <=> root.language-index;
+                selected => { root.language-changed(); }
+            }
+        }
+        Rectangle { height: 1px; background: #e0e0e0; }
+        HorizontalBox {
+            padding: 0px;
+            Text { text: "atbswp \{root.version}"; vertical-alignment: center; color: #555555; horizontal-stretch: 1; }
+            Button { text: @tr("About"); clicked => { root.about-clicked(); } }
+            Button { text: @tr("Exit"); clicked => { root.exit-clicked(); } }
+        }
+    }
+}

@@ -1,0 +1,114 @@
+# Turkish translation of the atbswp GUI (crates/atbswp-gui).
+# Strings are the @tr() literals in ui/app.slint; the build bundles this file.
+msgid ""
+msgstr ""
+"Project-Id-Version: atbswp-gui\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Load macro"
+msgstr "Makro yükle"
+
+msgid "Save macro (standalone executable)"
+msgstr "Makroyu kaydet (bağımsız çalıştırılabilir dosya)"
+
+msgid "Stop recording"
+msgstr "Kaydı durdur"
+
+msgid "Record"
+msgstr "Kaydet"
+
+msgid "Stop"
+msgstr "Durdur"
+
+msgid "Play"
+msgstr "Oynat"
+
+msgid "Settings"
+msgstr "Ayarlar"
+
+msgid "Help (video tutorial)"
+msgstr "Yardım (video eğitimi)"
+
+msgid "Ready"
+msgstr "Hazır"
+
+msgid "{} events · {}s"
+msgstr "{} olay · {}s"
+
+msgid "Loaded {}"
+msgstr "{} yüklendi"
+
+msgid "Wrote {}"
+msgstr "{} yazıldı"
+
+msgid "Recording… press {} or the record button to stop"
+msgstr "Kaydediliyor… durdurmak için {} veya kayıt düğmesine basın"
+
+msgid "Recording starts in {}s… press {} or the record button to stop"
+msgstr "Kayıt {}s içinde başlıyor… durdurmak için {} veya kayıt düğmesine basın"
+
+msgid "Recorded {} events"
+msgstr "{} olay kaydedildi"
+
+msgid "Stopping…"
+msgstr "Durduruluyor…"
+
+msgid "Playing…"
+msgstr "Oynatılıyor…"
+
+msgid "Stopped"
+msgstr "Durduruldu"
+
+msgid "Done"
+msgstr "Tamamlandı"
+
+msgid "Player exited with {}"
+msgstr "Oynatıcı {} ile çıktı"
+
+msgid "Opened {}"
+msgstr "{} açıldı"
+
+msgid "Cannot save settings: {}"
+msgstr "Ayarlar kaydedilemiyor: {}"
+
+msgid "No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER"
+msgstr "Gömülü oynatıcı yok: `make -C player` çalıştırıp yeniden derleyin veya ATBSWP_PLAYER ayarlayın"
+
+msgid "atbswp settings"
+msgstr "atbswp ayarları"
+
+msgid "Play speed: fast (2×)"
+msgstr "Oynatma hızı: hızlı (2×)"
+
+msgid "Infinite playback"
+msgstr "Sonsuz oynatma"
+
+msgid "Repeat count"
+msgstr "Tekrar sayısı"
+
+msgid "Recording hotkey (stops recording)"
+msgstr "Kayıt kısayolu (kaydı durdurur)"
+
+msgid "Always on top"
+msgstr "Her zaman üstte"
+
+msgid "Recording timer (seconds before start)"
+msgstr "Kayıt zamanlayıcısı (başlamadan önce saniye)"
+
+msgid "Mouse speed (ms between recorded moves)"
+msgstr "Fare hızı (kaydedilen hareketler arası ms)"
+
+msgid "Language"
+msgstr "Dil"
+
+msgid "System default"
+msgstr "Sistem varsayılanı"
+
+msgid "About"
+msgstr "Hakkında"
+
+msgid "Exit"
+msgstr "Çıkış"

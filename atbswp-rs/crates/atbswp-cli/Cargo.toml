@@ -1,0 +1,15 @@
+[package]
+name = "atbswp-cli"
+description = "Record keyboard/mouse macros and export them as standalone portable executables"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "atbswp"
+path = "src/main.rs"
+
+[dependencies]
+atbswp-core = { path = "../atbswp-core" }
+atbswp-macro = { path = "../atbswp-macro" }
