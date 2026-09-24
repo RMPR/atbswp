@@ -371,8 +371,22 @@ fn main() {
     if atbswp_core::EMBEDDED_PLAYER.is_empty() && std::env::var_os("ATBSWP_PLAYER").is_none() {
         ui.set_status(ui.invoke_msg_no_player());
     }
-    if std::env::var_os("ATBSWP_GUI_SHOW_SETTINGS").is_some() {
-        let _ = settings_win.show(); // for screenshots/tests
+    // Test hook: open the settings after N ms through the same path as the
+    // cog button (a number), or immediately at startup (any other value).
+    if let Ok(v) = std::env::var("ATBSWP_GUI_SHOW_SETTINGS") {
+        match v.parse::<u64>() {
+            Ok(ms) => {
+                let a = app.clone();
+                slint::Timer::single_shot(Duration::from_millis(ms), move || {
+                    if let Some(ui) = a.ui.upgrade() {
+                        ui.invoke_settings_clicked();
+                    }
+                });
+            }
+            Err(_) => {
+                let _ = settings_win.show();
+            }
+        }
     }
 
     let a = app.clone();
@@ -400,6 +414,10 @@ fn main() {
             eprintln!("atbswp: cannot show the settings window: {e}");
             ui.set_status(format!("Settings window: {e}").into());
         }
+        // On Wayland a window shown from a callback gets no first frame until
+        // the event loop is woken by something else (seconds later on KDE,
+        // never on a headless compositor); asking for a redraw fixes that.
+        w.window().request_redraw();
     });
     let a = app.clone();
     ui.on_help_clicked(move || {
