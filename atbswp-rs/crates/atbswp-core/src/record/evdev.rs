@@ -171,8 +171,9 @@ fn probe_touchpad(file: &File) -> Option<super::touchpad::Touchpad> {
 fn open_devices() -> Result<Vec<Device>, Error> {
     let mut devs = vec![];
     let mut denied = 0;
-    let entries =
-        fs::read_dir("/dev/input").map_err(|e| Error::Other(format!("/dev/input: {e}")))?;
+    // ATBSWP_INPUT_DIR lets tests feed fake devices (FIFOs) without /dev/input.
+    let dir = std::env::var("ATBSWP_INPUT_DIR").unwrap_or_else(|_| "/dev/input".into());
+    let entries = fs::read_dir(&dir).map_err(|e| Error::Other(format!("{dir}: {e}")))?;
     for entry in entries.flatten() {
         if !entry.file_name().to_string_lossy().starts_with("event") {
             continue;
@@ -356,6 +357,13 @@ pub fn run(
             revents: 0,
         })
         .collect();
+    if let Some(fd) = stop_fd {
+        pollfds.push(libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        });
+    }
 
     while !super::stop_requested() {
         let n = unsafe { libc::poll(pollfds.as_mut_ptr(), pollfds.len() as libc::nfds_t, 100) };
@@ -366,7 +374,7 @@ pub fn run(
             }
             return Err(Error::Other(format!("poll: {err}")));
         }
-        if stop_fd.is_some() && pollfds[devs.len()].revents != 0 {
+        if stop_fd.is_some() && pollfds.last().is_some_and(|p| p.revents != 0) {
             return Ok(()); // the parent closed our stop pipe
         }
         for (dev, pfd) in devs.iter_mut().zip(pollfds.iter()) {
