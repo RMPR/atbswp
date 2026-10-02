@@ -1,0 +1,114 @@
+# English translation of the atbswp GUI (crates/atbswp-gui).
+# Strings are the @tr() literals in ui/app.slint; the build bundles this file.
+msgid ""
+msgstr ""
+"Project-Id-Version: atbswp-gui\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Load macro"
+msgstr ""
+
+msgid "Save macro (standalone executable)"
+msgstr ""
+
+msgid "Stop recording"
+msgstr ""
+
+msgid "Record"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Play"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Help (video tutorial)"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "{} events · {}s"
+msgstr ""
+
+msgid "Loaded {}"
+msgstr ""
+
+msgid "Wrote {}"
+msgstr ""
+
+msgid "Recording… press {} or the record button to stop"
+msgstr ""
+
+msgid "Recording starts in {}s… press {} or the record button to stop"
+msgstr ""
+
+msgid "Recorded {} events"
+msgstr ""
+
+msgid "Stopping…"
+msgstr ""
+
+msgid "Playing…"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Player exited with {}"
+msgstr ""
+
+msgid "Opened {}"
+msgstr ""
+
+msgid "Cannot save settings: {}"
+msgstr ""
+
+msgid "No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER"
+msgstr ""
+
+msgid "atbswp settings"
+msgstr ""
+
+msgid "Play speed: fast (2×)"
+msgstr ""
+
+msgid "Infinite playback"
+msgstr ""
+
+msgid "Repeat count"
+msgstr ""
+
+msgid "Recording hotkey (stops recording)"
+msgstr ""
+
+msgid "Always on top"
+msgstr ""
+
+msgid "Recording timer (seconds before start)"
+msgstr ""
+
+msgid "Mouse speed (ms between recorded moves)"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "System default"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "Exit"
+msgstr ""

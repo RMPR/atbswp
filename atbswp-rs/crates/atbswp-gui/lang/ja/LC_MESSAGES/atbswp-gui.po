@@ -1,0 +1,114 @@
+# Japanese translation of the atbswp GUI (crates/atbswp-gui).
+# Strings are the @tr() literals in ui/app.slint; the build bundles this file.
+msgid ""
+msgstr ""
+"Project-Id-Version: atbswp-gui\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Load macro"
+msgstr "マクロを読み込む"
+
+msgid "Save macro (standalone executable)"
+msgstr "マクロを保存（単体で実行できるファイル）"
+
+msgid "Stop recording"
+msgstr "記録を停止"
+
+msgid "Record"
+msgstr "記録"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Play"
+msgstr "再生"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Help (video tutorial)"
+msgstr "ヘルプ（動画チュートリアル）"
+
+msgid "Ready"
+msgstr "準備完了"
+
+msgid "{} events · {}s"
+msgstr "{} イベント · {}秒"
+
+msgid "Loaded {}"
+msgstr "{} を読み込みました"
+
+msgid "Wrote {}"
+msgstr "{} に書き込みました"
+
+msgid "Recording… press {} or the record button to stop"
+msgstr "記録中… {} または記録ボタンで停止"
+
+msgid "Recording starts in {}s… press {} or the record button to stop"
+msgstr "{}秒後に記録を開始… {} または記録ボタンで停止"
+
+msgid "Recorded {} events"
+msgstr "{} イベントを記録しました"
+
+msgid "Stopping…"
+msgstr "停止中…"
+
+msgid "Playing…"
+msgstr "再生中…"
+
+msgid "Stopped"
+msgstr "停止しました"
+
+msgid "Done"
+msgstr "完了"
+
+msgid "Player exited with {}"
+msgstr "プレイヤーが {} で終了しました"
+
+msgid "Opened {}"
+msgstr "{} を開きました"
+
+msgid "Cannot save settings: {}"
+msgstr "設定を保存できません: {}"
+
+msgid "No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER"
+msgstr "プレイヤーが組み込まれていません: `make -C player` を実行して再ビルドするか、ATBSWP_PLAYER を設定してください"
+
+msgid "atbswp settings"
+msgstr "atbswp の設定"
+
+msgid "Play speed: fast (2×)"
+msgstr "再生速度: 高速（2倍）"
+
+msgid "Infinite playback"
+msgstr "無限に繰り返し再生"
+
+msgid "Repeat count"
+msgstr "繰り返し回数"
+
+msgid "Recording hotkey (stops recording)"
+msgstr "記録ホットキー（記録を停止）"
+
+msgid "Always on top"
+msgstr "常に手前に表示"
+
+msgid "Recording timer (seconds before start)"
+msgstr "記録開始までのタイマー（秒）"
+
+msgid "Mouse speed (ms between recorded moves)"
+msgstr "マウスの記録速度（記録する移動の間隔 ms）"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "System default"
+msgstr "システムの既定"
+
+msgid "About"
+msgstr "このアプリについて"
+
+msgid "Exit"
+msgstr "終了"

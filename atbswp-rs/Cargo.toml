@@ -1,7 +1,24 @@
-[package]
-name = "atbswp-rs"
+[workspace]
+resolver = "3"
+members = [
+    "crates/atbswp-macro",
+    "crates/atbswp-core",
+    "crates/atbswp-cli",
+    "crates/atbswp-gui",
+]
+# The Slint GUI pulls in a large dependency tree; build it explicitly with
+# `cargo build -p atbswp-gui`.
+default-members = ["crates/atbswp-macro", "crates/atbswp-core", "crates/atbswp-cli"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/rmpr/atbswp"
 
-[dependencies]
-gtk = { version = "0.11.1", package = "gtk4", features = ["v4_12"] }
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -1,0 +1,241 @@
+# CI for the Rust rewrite (atbswp-rs/).
+#
+# Pipeline:
+#   player        Linux   cosmocc -> player/build/player.com (fat APE)
+#   macos-helper  macOS   clang -arch x86_64 -> native helper for Intel Macs
+#   bundle        Linux   helper appended behind the APE, smoke test, artifact
+#   rust          Linux   cargo test, libei end-to-end, export a sample macro
+#   portable      Win/mac the exported file must start unmodified everywhere
+name: atbswp-rs
+
+on:
+  push:
+    branches: [master, oxidization]
+    paths: ["atbswp-rs/**", ".github/workflows/atbswp-rs.yml"]
+  pull_request:
+    paths: ["atbswp-rs/**", ".github/workflows/atbswp-rs.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: atbswp-rs
+
+jobs:
+  player:
+    name: player (APE, cosmocc)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cosmocc
+        uses: actions/cache@v4
+        with:
+          path: atbswp-rs/player/.cosmocc
+          key: cosmocc-${{ hashFiles('atbswp-rs/player/Makefile') }}
+      - name: Build player
+        run: make -C player
+      - name: Smoke test
+        run: make -C player test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-unbundled
+          path: atbswp-rs/player/build/player.com
+          if-no-files-found: error
+
+  macos-helper:
+    name: macOS x86-64 helper (clang)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native helper
+        run: make -C player native-macos
+      - name: Helper starts (under Rosetta on an arm64 runner)
+        run: |
+          file player/build/player-macos-x86_64
+          player/build/player-macos-x86_64 --version
+      - name: Native smoke test
+        run: sh player/tests/smoke.sh player/build/player-macos-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-macos-x86_64
+          path: atbswp-rs/player/build/player-macos-x86_64
+          if-no-files-found: error
+
+  bundle:
+    name: bundle helper into APE
+    runs-on: ubuntu-24.04
+    needs: [player, macos-helper]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: player-unbundled
+          path: atbswp-rs/player/build
+      - uses: actions/download-artifact@v4
+        with:
+          name: player-macos-x86_64
+          path: atbswp-rs/player/build
+      - name: Bundle
+        run: |
+          chmod +x player/build/player.com
+          touch player/build/player.com   # newer than sources: do not rebuild
+          make -C player bundle
+      - name: Smoke test the bundled player
+        run: sh player/tests/smoke.sh player/build/player.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player.com
+          path: atbswp-rs/player/build/player.com
+          if-no-files-found: error
+
+  rust:
+    name: rust crates + libei end-to-end
+    runs-on: ubuntu-24.04
+    needs: bundle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: player.com
+          path: atbswp-rs/player/build
+      - run: chmod +x player/build/player.com
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: atbswp-rs
+      - name: Install test dependencies (libeis, D-Bus python, Xvfb, fontconfig)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libei-dev libeis1 libfontconfig1-dev \
+            python3-dbus python3-gi dbus-daemon xvfb xinput xdotool \
+            pipewire wireplumber libpipewire-0.3-dev libspa-0.2-dev
+      - name: Format
+        run: cargo fmt --check
+      - name: Generated key table is current
+        run: python3 player/tools/gen_keymap_rs.py --check
+      - name: Clippy
+        run: cargo clippy -q --all-targets -- -D warnings
+      - name: Unit tests
+        run: cargo test -q
+      - name: Type-check the Slint GUI
+        run: cargo check -q -p atbswp-gui
+      - name: Every @tr string is translated in every bundled language
+        run: python3 tests/check_translations.py
+      - name: Build EIS sink
+        run: make -C player build/eis_sink
+      - name: End-to-end through libei (LIBEI_SOCKET)
+        run: sh tests/e2e.sh
+      - name: End-to-end through the RemoteDesktop portal (fake portal on a private bus)
+        run: sh tests/e2e_portal.sh
+      - name: Export the golden macro
+        run: |
+          cargo run -q -p atbswp-cli -- export tests/golden.txt -o golden-macro.com
+          cargo run -q -p atbswp-cli -- dump golden-macro.com
+      - name: End-to-end on X11 (Xvfb + XTest, observed with xinput)
+        run: sh tests/e2e_x11.sh golden-macro.com
+      - name: Record while playing on X11 (XRecord)
+        run: sh tests/e2e_x11_record.sh target/debug/atbswp golden-macro.com
+      - name: PipeWire ABI facts match the hand-declared bindings
+        run: |
+          make -C player build/pw_abi_check build/pw_cursor_src
+          python3 tests/pw_abi_check.py player/build/pw_abi_check
+      - name: Wayland recorder (fake ScreenCast portal + PipeWire cursor metadata)
+        run: sh tests/e2e_wayland_record.sh
+      - name: pkexec helper streams events and stops when its stdin closes
+        run: sh tests/e2e_helper_stop.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: golden-macro
+          path: atbswp-rs/golden-macro.com
+
+  # The same exported file, unmodified, must start on every OS/arch, and
+  # where the runner lets us observe input we check what the OS delivered.
+  portable:
+    name: run exported macro on ${{ matrix.os }}
+    needs: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: golden-macro
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: atbswp-rs
+      - name: Build the recorder CLI natively
+        working-directory: atbswp-rs
+        run: cargo build -q -p atbswp-cli
+      - name: Dump and dry-run (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          copy golden-macro.com golden-macro.exe
+          golden-macro.exe --dump
+          golden-macro.exe --dry-run --speed 1000
+      - name: Inject and observe with low-level hooks (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh atbswp-rs/tests/win/run.ps1 (Resolve-Path golden-macro.com)
+      - name: Record while playing (Windows hooks recorder)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh atbswp-rs/tests/win/record.ps1 (Resolve-Path atbswp-rs/target/debug/atbswp.exe) (Resolve-Path golden-macro.com)
+      - name: Dump and dry-run (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x golden-macro.com
+          uname -m
+          ./golden-macro.com --dump
+          ./golden-macro.com --dry-run --speed 1000
+      # Hosted runners turn out to honour posted mouse events even without
+      # an Accessibility grant, so the pointer position is a real observer:
+      # 200,300 as recorded on a 1024x768 screen, scaled to the runner's.
+      - name: Play and check the pointer (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          clang -framework ApplicationServices -o cursor atbswp-rs/tests/mac/cursor.c
+          echo "pointer before: $(./cursor)"
+          ATBSWP_VERBOSE=1 ./golden-macro.com --speed 400 2> player.log; rc=$?
+          cat player.log
+          after=$(./cursor); echo "pointer after:  $after"
+          test "$rc" -eq 0
+          grep -q "backend macos ready" player.log
+          if [ "$(uname -m)" = x86_64 ]; then grep -q "delegating to native helper" player.log; fi
+          screen=$(grep -o 'target screen [0-9]*x[0-9]*' player.log | awk '{print $3}')
+          w=${screen%x*}; h=${screen#*x}
+          expected="$((200 * w / 1024)) $((300 * h / 768))"
+          echo "expected:       $expected (screen ${w}x${h})"
+          test "$after" = "$expected"
+      # Hosted macOS runners turn out to allow a listen-only event tap, so
+      # the recorder is checked for real here too.
+      # A listen-only event tap on a hosted Apple Silicon runner sometimes
+      # receives nothing for the whole session (environmental: the same
+      # commit passes on rerun), so the step retries once and is advisory
+      # there; the Intel runner, which has never flaked, keeps it strict.
+      - name: Record while playing (macOS event tap recorder)
+        if: runner.os == 'macOS'
+        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          attempt() {
+            rm -f rec.txt rec.err
+            atbswp-rs/target/debug/atbswp record -o rec.txt 2> rec.err &
+            REC=$!
+            for _ in $(seq 100); do grep -q "recording via" rec.err 2>/dev/null && break; sleep 0.1; done
+            sleep 1   # let the tap settle on slow runners
+            ./golden-macro.com --speed 400
+            for _ in $(seq 100); do kill -0 $REC 2>/dev/null || break; sleep 0.1; done
+            if kill -0 $REC 2>/dev/null; then kill $REC; cat rec.err; echo "recorder did not stop on F12"; return 1; fi
+            cat rec.err
+            cat rec.txt
+            python3 atbswp-rs/tests/check_recording.py rec.txt
+          }
+          attempt || { echo "retrying once (event tap received nothing)"; sleep 3; attempt; }

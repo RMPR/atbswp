@@ -1,0 +1,114 @@
+# French translation of the atbswp GUI (crates/atbswp-gui).
+# Strings are the @tr() literals in ui/app.slint; the build bundles this file.
+msgid ""
+msgstr ""
+"Project-Id-Version: atbswp-gui\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Load macro"
+msgstr "Charger une macro"
+
+msgid "Save macro (standalone executable)"
+msgstr "Sauvegarder la macro (exécutable autonome)"
+
+msgid "Stop recording"
+msgstr "Arrêter l'enregistrement"
+
+msgid "Record"
+msgstr "Enregistrer"
+
+msgid "Stop"
+msgstr "Arrêter"
+
+msgid "Play"
+msgstr "Jouer"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Help (video tutorial)"
+msgstr "Aide (tutoriel vidéo)"
+
+msgid "Ready"
+msgstr "Prêt"
+
+msgid "{} events · {}s"
+msgstr "{} événements · {}s"
+
+msgid "Loaded {}"
+msgstr "{} chargé"
+
+msgid "Wrote {}"
+msgstr "{} écrit"
+
+msgid "Recording… press {} or the record button to stop"
+msgstr "Enregistrement… appuyez sur {} ou sur le bouton d'enregistrement pour arrêter"
+
+msgid "Recording starts in {}s… press {} or the record button to stop"
+msgstr "L'enregistrement commence dans {}s… appuyez sur {} ou sur le bouton d'enregistrement pour arrêter"
+
+msgid "Recorded {} events"
+msgstr "{} événements enregistrés"
+
+msgid "Stopping…"
+msgstr "Arrêt…"
+
+msgid "Playing…"
+msgstr "Lecture…"
+
+msgid "Stopped"
+msgstr "Arrêté"
+
+msgid "Done"
+msgstr "Terminé"
+
+msgid "Player exited with {}"
+msgstr "Le lecteur s'est terminé avec {}"
+
+msgid "Opened {}"
+msgstr "{} ouvert"
+
+msgid "Cannot save settings: {}"
+msgstr "Impossible d'enregistrer les paramètres : {}"
+
+msgid "No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER"
+msgstr "Aucun lecteur intégré : lancez `make -C player` puis recompilez, ou définissez ATBSWP_PLAYER"
+
+msgid "atbswp settings"
+msgstr "Paramètres d'atbswp"
+
+msgid "Play speed: fast (2×)"
+msgstr "Vitesse : rapide (2×)"
+
+msgid "Infinite playback"
+msgstr "Lecture infinie"
+
+msgid "Repeat count"
+msgstr "Nombre de répétitions"
+
+msgid "Recording hotkey (stops recording)"
+msgstr "Touche d'enregistrement (arrête l'enregistrement)"
+
+msgid "Always on top"
+msgstr "Toujours au-dessus"
+
+msgid "Recording timer (seconds before start)"
+msgstr "Minuterie d'enregistrement (secondes avant le début)"
+
+msgid "Mouse speed (ms between recorded moves)"
+msgstr "Vitesse de la souris (ms entre les mouvements enregistrés)"
+
+msgid "Language"
+msgstr "Langue"
+
+msgid "System default"
+msgstr "Langue du système"
+
+msgid "About"
+msgstr "À propos"
+
+msgid "Exit"
+msgstr "Quitter"

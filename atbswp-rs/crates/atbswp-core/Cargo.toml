@@ -1,0 +1,27 @@
+[package]
+name = "atbswp-core"
+description = "Recording, player embedding and playback helpers shared by the atbswp CLI and GUI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[dependencies]
+atbswp-macro = { path = "../atbswp-macro" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# XRecord-based recorder on X11 (pure Rust, talks to the X server directly)
+x11rb = { version = "0.14", features = ["record"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+] }

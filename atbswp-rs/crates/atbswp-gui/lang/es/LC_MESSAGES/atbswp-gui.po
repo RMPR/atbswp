@@ -1,0 +1,114 @@
+# Spanish translation of the atbswp GUI (crates/atbswp-gui).
+# Strings are the @tr() literals in ui/app.slint; the build bundles this file.
+msgid ""
+msgstr ""
+"Project-Id-Version: atbswp-gui\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Load macro"
+msgstr "Cargar macro"
+
+msgid "Save macro (standalone executable)"
+msgstr "Guardar macro (ejecutable independiente)"
+
+msgid "Stop recording"
+msgstr "Detener grabación"
+
+msgid "Record"
+msgstr "Grabar"
+
+msgid "Stop"
+msgstr "Detener"
+
+msgid "Play"
+msgstr "Reproducir"
+
+msgid "Settings"
+msgstr "Preferencias"
+
+msgid "Help (video tutorial)"
+msgstr "Ayuda (vídeo tutorial)"
+
+msgid "Ready"
+msgstr "Listo"
+
+msgid "{} events · {}s"
+msgstr "{} eventos · {}s"
+
+msgid "Loaded {}"
+msgstr "{} cargado"
+
+msgid "Wrote {}"
+msgstr "{} guardado"
+
+msgid "Recording… press {} or the record button to stop"
+msgstr "Grabando… pulsa {} o el botón de grabar para detener"
+
+msgid "Recording starts in {}s… press {} or the record button to stop"
+msgstr "La grabación empieza en {}s… pulsa {} o el botón de grabar para detener"
+
+msgid "Recorded {} events"
+msgstr "{} eventos grabados"
+
+msgid "Stopping…"
+msgstr "Deteniendo…"
+
+msgid "Playing…"
+msgstr "Reproduciendo…"
+
+msgid "Stopped"
+msgstr "Detenido"
+
+msgid "Done"
+msgstr "Hecho"
+
+msgid "Player exited with {}"
+msgstr "El reproductor terminó con {}"
+
+msgid "Opened {}"
+msgstr "{} abierto"
+
+msgid "Cannot save settings: {}"
+msgstr "No se pueden guardar las preferencias: {}"
+
+msgid "No player embedded: run `make -C player` and rebuild, or set ATBSWP_PLAYER"
+msgstr "No hay reproductor incrustado: ejecuta `make -C player` y recompila, o define ATBSWP_PLAYER"
+
+msgid "atbswp settings"
+msgstr "Preferencias de atbswp"
+
+msgid "Play speed: fast (2×)"
+msgstr "Velocidad de reproducción: rápida (2×)"
+
+msgid "Infinite playback"
+msgstr "Bucle infinito"
+
+msgid "Repeat count"
+msgstr "Número de repeticiones"
+
+msgid "Recording hotkey (stops recording)"
+msgstr "Tecla de grabación (detiene la grabación)"
+
+msgid "Always on top"
+msgstr "Siempre en primer plano"
+
+msgid "Recording timer (seconds before start)"
+msgstr "Temporizador de grabación (segundos antes de empezar)"
+
+msgid "Mouse speed (ms between recorded moves)"
+msgstr "Velocidad del ratón (ms entre movimientos grabados)"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "System default"
+msgstr "Predeterminado del sistema"
+
+msgid "About"
+msgstr "Acerca de"
+
+msgid "Exit"
+msgstr "Salir"
