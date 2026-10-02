@@ -18,15 +18,18 @@ use std::sync::Mutex;
 struct Merger {
     b: Builder,
     cursor: Option<CursorStream>,
+    session: Option<portal::ScreenCast>,
     pending: VecDeque<super::pw::Sample>,
     last_t: u64,
 }
 
 impl Merger {
-    fn new(opts: &Options, cursor: Option<CursorStream>) -> Self {
+    fn new(opts: &Options, cursor: Option<(portal::ScreenCast, CursorStream)>) -> Self {
+        let (session, cursor) = cursor.map_or((None, None), |(s, c)| (Some(s), Some(c)));
         Merger {
             b: Builder::new(opts),
             cursor,
+            session,
             pending: VecDeque::new(),
             last_t: 0,
         }
@@ -77,24 +80,14 @@ impl Merger {
             }
             cs.stop();
         }
+        if let Some(session) = self.session.take() {
+            session.close();
+        }
         if let Some((w, h)) = opts.screen {
             (header.screen_w, header.screen_h) = (w, h);
         }
         self.b.finish(header)
     }
-}
-
-fn cli_binary() -> std::path::PathBuf {
-    if let Ok(exe) = std::env::current_exe() {
-        if exe.file_name().is_some_and(|n| n == "atbswp") {
-            return exe;
-        }
-        let sibling = exe.with_file_name("atbswp");
-        if sibling.exists() {
-            return sibling;
-        }
-    }
-    std::path::PathBuf::from("atbswp")
 }
 
 /// The elevated helper's stdin.  An unprivileged parent cannot signal a
@@ -107,14 +100,13 @@ pub(crate) fn stop_helper() {
     HELPER_STDIN.lock().unwrap().take();
 }
 
-/// Re-run the CLI recorder as root through pkexec; it streams raw events
-/// back on stdout (see [`stream_raw_to_stdout`]).
+/// Re-run *this* executable as root through pkexec, in helper mode, so the
+/// helper is always the same build as the front end that spawned it; it
+/// streams raw events back on stdout (see [`stream_raw_to_stdout`]).
 fn spawn_elevated(opts: &Options) -> Result<Child, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
     let mut cmd = Command::new("pkexec");
-    cmd.arg(cli_binary())
-        .arg("record")
-        .arg("--stdout-raw")
-        .arg("--no-elevate");
+    cmd.arg(exe).args(&opts.helper_args);
     if let Some(k) = opts.stop_key {
         cmd.arg("--stop-key").arg(k.to_string());
     }
@@ -132,14 +124,14 @@ fn spawn_elevated(opts: &Options) -> Result<Child, String> {
     Ok(child)
 }
 
-fn start_cursor_stream() -> Option<CursorStream> {
+fn start_cursor_stream() -> Option<(portal::ScreenCast, CursorStream)> {
     let result = portal::open_screencast().and_then(|sc| {
         let (w, h) = sc.stream.size.unwrap_or((0, 0));
         eprintln!("atbswp: screen-cast stream {} ({w}x{h})", sc.node_id);
-        CursorStream::start(sc.fd, sc.node_id)
+        CursorStream::start(sc.fd, sc.node_id).map(|cs| (sc, cs))
     });
     match result {
-        Ok(cs) => Some(cs),
+        Ok(pair) => Some(pair),
         Err(e) => {
             eprintln!(
                 "atbswp: no cursor stream ({e}); pointer motion will be recorded as relative evdev motion"

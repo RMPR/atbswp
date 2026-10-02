@@ -220,6 +220,7 @@ fn toggle_recording(app: &App, ui: &MainWindow) {
         let opts = record::Options {
             stop_key: Some(s.recording_hotkey),
             min_move_interval_us: s.mouse_speed_ms * 1000,
+            helper_args: HELPER_ARGS.map(String::from).to_vec(),
             ..record::Options::default()
         };
         let result = record::record(&opts);
@@ -353,7 +354,32 @@ fn open_url(url: &str) -> bool {
 
 // ---- wiring ------------------------------------------------------------------
 
+/// Arguments that re-run this binary as the root evdev helper on Wayland.
+const HELPER_ARGS: [&str; 1] = ["--record-helper"];
+
 fn main() {
+    #[cfg(target_os = "linux")]
+    {
+        // Helper mode: no window, just raw events on stdout (see atbswp-core).
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        if args.first().map(String::as_str) == Some(HELPER_ARGS[0]) {
+            let stop_key = args
+                .iter()
+                .position(|a| a == "--stop-key")
+                .and_then(|i| args.get(i + 1))
+                .and_then(|v| v.parse().ok());
+            let opts = record::Options {
+                stop_key,
+                allow_elevate: false,
+                ..record::Options::default()
+            };
+            if let Err(e) = record::wayland::stream_raw_to_stdout(&opts) {
+                eprintln!("atbswp: {e}");
+                std::process::exit(1);
+            }
+            return;
+        }
+    }
     let ui = MainWindow::new().expect("cannot create window");
     let settings_win = SettingsWindow::new().expect("cannot create settings window");
     let app = App {

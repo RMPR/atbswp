@@ -36,6 +36,8 @@ pub fn save_token(name: &str, token: &str) {
 pub struct ScreenCast {
     pub fd: RawFd,
     pub node_id: u32,
+    portal: Portal,
+    session: String,
     pub stream: Stream,
 }
 
@@ -44,7 +46,11 @@ pub fn open_screencast() -> Result<ScreenCast, String> {
     const CURSOR_MODE_METADATA: u32 = 4;
     const SOURCE_MONITOR: u32 = 1;
     let mut p = Portal::connect()?;
-    let session_token = format!("atbswp_sc{}", std::process::id());
+    let session_token = format!(
+        "atbswp_sc{}_{}",
+        std::process::id(),
+        super::dbus::next_token()
+    );
     let (code, results) = p.request(
         IFACE,
         "CreateSession",
@@ -105,5 +111,14 @@ pub fn open_screencast() -> Result<ScreenCast, String> {
         fd,
         node_id: stream.node_id,
         stream,
+        portal: p,
+        session,
     })
+}
+
+impl ScreenCast {
+    /// End the portal session (otherwise it lingers for the process' life).
+    pub fn close(mut self) {
+        self.portal.close_session(&self.session);
+    }
 }

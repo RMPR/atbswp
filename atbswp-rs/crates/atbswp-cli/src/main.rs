@@ -193,6 +193,7 @@ fn cmd_record(args: &Args) -> Result<(), String> {
         handle_signals: true,
         allow_elevate: !args.has("no-elevate"),
         raw_from: args.value("raw-from").map(str::to_string),
+        ..record::Options::default()
     };
     #[cfg(target_os = "linux")]
     if args.has("stdout-raw") {

@@ -101,11 +101,17 @@ pub struct Stream {
     pub position: Option<(i32, i32)>,
 }
 
+/// Portal handle and session tokens must be unique for the life of the
+/// process (sessions outlive the request), hence a process-wide counter.
+pub fn next_token() -> u32 {
+    static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1
+}
+
 pub struct Portal {
     d: DBus,
     conn: Conn,
     sender: String,
-    counter: u32,
 }
 
 const BUS: &str = "org.freedesktop.portal.Desktop";
@@ -127,12 +133,7 @@ impl Portal {
             .to_string_lossy()
             .into_owned();
         let sender = unique.trim_start_matches(':').replace('.', "_");
-        Ok(Portal {
-            d,
-            conn,
-            sender,
-            counter: 0,
-        })
+        Ok(Portal { d, conn, sender })
     }
 
     fn add_match(&self, rule: &str) -> Result<(), String> {
@@ -161,8 +162,7 @@ impl Portal {
         options: &[(&str, Value)],
         timeout: Duration,
     ) -> Result<(u32, Vec<(String, Value)>), String> {
-        self.counter += 1;
-        let token = format!("atbswp{}_{}", std::process::id(), self.counter);
+        let token = format!("atbswp{}_{}", std::process::id(), next_token());
         let request_path = format!(
             "/org/freedesktop/portal/desktop/request/{}/{}",
             self.sender, token
@@ -520,6 +520,32 @@ impl Portal {
             Err(format!("{method} returned no file descriptor"))
         } else {
             Ok(fd)
+        }
+    }
+
+    /// `org.freedesktop.portal.Session.Close` on a session we created.
+    pub fn close_session(&mut self, session: &str) {
+        let d = &self.d;
+        unsafe {
+            let msg = (d.dbus_message_new_method_call)(
+                cs(BUS).as_ptr(),
+                cs(session).as_ptr(),
+                cs("org.freedesktop.portal.Session").as_ptr(),
+                cs("Close").as_ptr(),
+            );
+            if msg.is_null() {
+                return;
+            }
+            let mut err = DBusError::new();
+            (d.dbus_error_init)(&mut err);
+            let reply =
+                (d.dbus_connection_send_with_reply_and_block)(self.conn, msg, 2000, &mut err);
+            (d.dbus_message_unref)(msg);
+            if reply.is_null() {
+                (d.dbus_error_free)(&mut err);
+            } else {
+                (d.dbus_message_unref)(reply);
+            }
         }
     }
 }

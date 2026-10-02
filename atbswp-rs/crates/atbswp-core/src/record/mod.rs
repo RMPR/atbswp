@@ -57,6 +57,9 @@ pub struct Options {
     /// Test hook: read raw evdev events (helper line format) from this file
     /// instead of /dev/input.
     pub raw_from: Option<String>,
+    /// Arguments that make *this* executable run as the elevated evdev
+    /// helper (`wayland::stream_raw_to_stdout`); `--stop-key N` is appended.
+    pub helper_args: Vec<String>,
 }
 
 impl Default for Options {
@@ -68,6 +71,9 @@ impl Default for Options {
             handle_signals: false,
             allow_elevate: true,
             raw_from: None,
+            helper_args: ["record", "--stdout-raw", "--no-elevate"]
+                .map(String::from)
+                .to_vec(),
         }
     }
 }
